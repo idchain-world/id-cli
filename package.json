@@ -1,0 +1,25 @@
+{
+  "name": "@xid/cli",
+  "version": "0.1.0",
+  "description": "CLI for ID Chain agent name registration and management",
+  "type": "module",
+  "bin": {
+    "idcli": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/index.ts",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "chalk": "^5.3.0",
+    "commander": "^12.0.0",
+    "dotenv": "^17.3.1",
+    "ethers": "^6.13.7"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "tsx": "^4.7.0",
+    "typescript": "^5.4.0"
+  }
+}
