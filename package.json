@@ -4,7 +4,7 @@
   "description": "CLI for ID Chain agent name registration and management",
   "type": "module",
   "bin": {
-    "idcli": "./dist/index.js"
+    "id-cli": "./dist/index.js"
   },
   "scripts": {
     "build": "tsc",

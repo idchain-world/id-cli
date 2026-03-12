@@ -143,10 +143,10 @@ export const registerAgentCommand = new Command("register-agent")
         await linkTx.wait();
         console.log(chalk.green("Linked agent to name via ENSIP-25."));
       } else if (opts.link && !agentId) {
-        console.log(chalk.yellow("Cannot link: agent ID not found. Use `idcli link-agent` manually."));
+        console.log(chalk.yellow("Cannot link: agent ID not found. Use `id-cli link-agent` manually."));
       } else if (agentId) {
         console.log(chalk.dim(`\nTo link to your name, run:`));
-        console.log(`  idcli link-agent ${resolved.path} ${agentId} --chain ${opts.chain}`);
+        console.log(`  id-cli link-agent ${resolved.path} ${agentId} --chain ${opts.chain}`);
       }
     } catch (err: any) {
       console.error(chalk.red(err.message));
