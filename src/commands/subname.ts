@@ -1,37 +1,30 @@
 import { Command } from "commander";
 import { ethers } from "ethers";
 import chalk from "chalk";
-import { resolveChain, getChainConfig } from "../config.js";
+import { getChainConfig } from "../config.js";
 import { getWallet } from "../provider.js";
 import { REGISTRY_ABI } from "../abi.js";
-import { getNodeForLabel, formatDomainName, indexerFetch } from "../utils.js";
+import { resolveName, indexerFetch } from "../utils.js";
 
-const createCmd = new Command("create")
+export const createSubnameCommand = new Command("create-subname")
   .description("Create a subname under an agent")
   .argument("<sublabel>", "Subname label (e.g., neo)")
-  .option("--parent <label>", "Parent agent label (e.g., agent-0)", "")
+  .requiredOption("--parent <name>", "Parent name (e.g., agent-0, agent-0.base.xid.eth)")
   .option("-c, --chain <chain>", "Chain", "base")
   .option("--owner <address>", "Owner address (defaults to your wallet)")
   .action(async (sublabel, opts) => {
     try {
-      if (!opts.parent) {
-        console.error(chalk.red("--parent is required. Example: xid subname create neo --parent agent-0"));
-        process.exit(1);
-      }
-
-      const chainId = resolveChain(opts.chain);
-      const config = getChainConfig(chainId);
-      const wallet = getWallet(chainId);
-      const parentNode = getNodeForLabel(opts.parent, chainId);
+      const parent = resolveName(opts.parent, opts.chain);
+      const config = getChainConfig(parent.chainId);
+      const wallet = getWallet(parent.chainId);
       const owner = opts.owner || wallet.address;
 
-      const parentDomain = formatDomainName(opts.parent, chainId);
-      const fullDomain = `${sublabel}.${parentDomain}`;
+      const fullDomain = `${sublabel}.${parent.domain}`;
 
       const registry = new ethers.Contract(config.ID_REGISTRY, REGISTRY_ABI, wallet);
 
       console.log(chalk.dim(`Creating ${fullDomain}...`));
-      const tx = await registry.setSubnodeOwner(parentNode, sublabel, owner);
+      const tx = await registry.setSubnodeOwner(parent.node, sublabel, owner);
       console.log(`Tx: ${chalk.dim(tx.hash)}`);
       await tx.wait();
       console.log(chalk.green(`Created ${chalk.bold(fullDomain)}`));
@@ -44,16 +37,15 @@ const createCmd = new Command("create")
     }
   });
 
-const listCmd = new Command("list")
+export const listSubnamesCommand = new Command("list-subnames")
   .description("List subnames under an agent")
-  .argument("<label>", "Parent agent label")
+  .argument("<name>", "Parent name (e.g., agent-0, agent-0.base.xid.eth)")
   .option("-c, --chain <chain>", "Chain", "base")
-  .action(async (label, opts) => {
+  .action(async (name, opts) => {
     try {
-      const chainId = resolveChain(opts.chain);
-      const domain = formatDomainName(label, chainId);
+      const resolved = resolveName(name, opts.chain);
 
-      const res = await indexerFetch(`/api/domains?parent=${label}&chain=${chainId}`);
+      const res = await indexerFetch(`/api/domains?parent=${resolved.path}&chain=${resolved.chainId}`);
       if (!res.ok) {
         console.log(chalk.dim("Could not fetch subnames from indexer."));
         return;
@@ -62,11 +54,11 @@ const listCmd = new Command("list")
       const data = await res.json();
       const domains = data.domains || data || [];
       if (!domains.length) {
-        console.log(chalk.dim(`No subnames found under ${domain}`));
+        console.log(chalk.dim(`No subnames found under ${resolved.domain}`));
         return;
       }
 
-      console.log(chalk.bold(`Subnames of ${domain}\n`));
+      console.log(chalk.bold(`Subnames of ${resolved.domain}\n`));
       for (const d of domains) {
         console.log(`  ${d.label || d.name}  ${chalk.dim(d.owner || "")}`);
       }
@@ -75,8 +67,3 @@ const listCmd = new Command("list")
       process.exit(1);
     }
   });
-
-export const subnameCommand = new Command("subname")
-  .description("Create and manage subnames")
-  .addCommand(createCmd)
-  .addCommand(listCmd);

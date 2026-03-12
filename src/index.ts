@@ -5,10 +5,11 @@ import { registerCommand } from "./commands/register.js";
 import { renewCommand } from "./commands/renew.js";
 import { transferCommand } from "./commands/transfer.js";
 import { infoCommand } from "./commands/info.js";
-import { recordsCommand } from "./commands/records.js";
-import { subnameCommand } from "./commands/subname.js";
+import { recordsCommand, setTextCommand, setAddrCommand, setContenthashCommand } from "./commands/records.js";
+import { createSubnameCommand, listSubnamesCommand } from "./commands/subname.js";
 import { exploreCommand } from "./commands/explore.js";
 import { mintCommand } from "./commands/mint.js";
+import { registerAgentCommand, linkAgentCommand } from "./commands/agent.js";
 
 const program = new Command();
 
@@ -22,7 +23,13 @@ program.addCommand(renewCommand);
 program.addCommand(transferCommand);
 program.addCommand(infoCommand);
 program.addCommand(recordsCommand);
-program.addCommand(subnameCommand);
+program.addCommand(setTextCommand);
+program.addCommand(setAddrCommand);
+program.addCommand(setContenthashCommand);
+program.addCommand(createSubnameCommand);
+program.addCommand(listSubnamesCommand);
+program.addCommand(registerAgentCommand);
+program.addCommand(linkAgentCommand);
 program.addCommand(exploreCommand);
 program.addCommand(mintCommand);
 

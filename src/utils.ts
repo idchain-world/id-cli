@@ -1,5 +1,5 @@
 import { ethers } from "ethers";
-import { getChainConfig, INDEXER_BASE_URL, type ChainConfig } from "./config.js";
+import { getChainConfig, resolveChain, CHAIN_CONFIGS, INDEXER_BASE_URL, type ChainConfig } from "./config.js";
 
 export function labelhash(label: string): string {
   return ethers.keccak256(ethers.toUtf8Bytes(label));
@@ -19,6 +19,63 @@ export function getNodeForLabel(label: string, chainId: number): string {
 export function formatDomainName(label: string, chainId: number): string {
   const config = getChainConfig(chainId);
   return `${label}${config.suffix}`;
+}
+
+/**
+ * Resolve a name input to { path, node, chainId, domain }.
+ *
+ * Accepts:
+ *   - Full domain:  neo.agent-0.base.xid.eth
+ *   - Short path:   neo.agent-0  (requires chainId from --chain)
+ *   - Simple label:  agent-0     (requires chainId from --chain)
+ *
+ * For multi-level paths like "neo.agent-0", hashes each label
+ * from right to left starting from the chain's PARENT_NODE.
+ */
+export interface ResolvedName {
+  path: string;       // e.g. "neo.agent-0"
+  node: string;       // namehash
+  chainId: number;
+  domain: string;     // e.g. "neo.agent-0.base.xid.eth"
+  topLabel: string;   // e.g. "agent-0" (the direct child of PARENT_NODE)
+}
+
+export function resolveName(input: string, chainFlag?: string): ResolvedName {
+  // Try to detect full domain: ends with .xid.eth
+  const suffixMatch = input.match(/^(.+?)(\.(base|eth|op|arb)\.xid\.eth)$/);
+  if (suffixMatch) {
+    const path = suffixMatch[1];
+    const suffix = suffixMatch[2];
+    // Find chain by suffix
+    const config = Object.values(CHAIN_CONFIGS).find(c => c.suffix === suffix);
+    if (!config) throw new Error(`Unknown suffix: ${suffix}`);
+    return resolvePathOnChain(path, config.chainId);
+  }
+
+  // Otherwise use --chain flag
+  const chainId = chainFlag ? resolveChain(chainFlag) : 8453;
+  return resolvePathOnChain(input, chainId);
+}
+
+function resolvePathOnChain(path: string, chainId: number): ResolvedName {
+  const config = getChainConfig(chainId);
+  const labels = path.split(".");
+
+  // Hash from right to left: agent-0 first, then neo
+  // labels = ["neo", "agent-0"] → hash agent-0 under PARENT_NODE, then neo under that
+  let node = config.PARENT_NODE;
+  const topLabel = labels[labels.length - 1];
+  for (let i = labels.length - 1; i >= 0; i--) {
+    node = makeNode(node, labels[i]);
+  }
+
+  return {
+    path,
+    node,
+    chainId,
+    domain: `${path}${config.suffix}`,
+    topLabel,
+  };
 }
 
 export function formatUsdc(amount: bigint): string {

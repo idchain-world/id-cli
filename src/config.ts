@@ -92,6 +92,13 @@ export const INDEXER_BASE_URL = "https://idx-indexer.onrender.com";
 export function getChainConfig(chainId: number): ChainConfig {
   const config = CHAIN_CONFIGS[chainId];
   if (!config) throw new Error(`Unsupported chain: ${chainId}. Supported: ${Object.keys(CHAIN_CONFIGS).join(", ")}`);
+
+  // Allow RPC_URL env var to override the chain's default RPC (useful for local fork testing)
+  const rpcOverride = process.env.RPC_URL;
+  if (rpcOverride) {
+    return { ...config, rpc: rpcOverride };
+  }
+
   return config;
 }
 

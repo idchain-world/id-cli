@@ -1,39 +1,37 @@
 import { Command } from "commander";
 import { ethers } from "ethers";
 import chalk from "chalk";
-import { resolveChain, getChainConfig } from "../config.js";
+import { getChainConfig } from "../config.js";
 import { getProvider } from "../provider.js";
 import { REGISTRY_ABI } from "../abi.js";
-import { getNodeForLabel, formatDomainName, indexerFetch } from "../utils.js";
+import { resolveName, indexerFetch } from "../utils.js";
 
 export const infoCommand = new Command("info")
   .description("Show details for an agent name")
-  .argument("<label>", "Agent label (e.g., agent-0)")
-  .option("-c, --chain <chain>", "Chain", "base")
-  .action(async (label, opts) => {
+  .argument("<name>", "Name (e.g., agent-0, neo.agent-0, agent-0.base.xid.eth)")
+  .option("-c, --chain <chain>", "Chain (not needed for full domain names)", "base")
+  .action(async (name, opts) => {
     try {
-      const chainId = resolveChain(opts.chain);
-      const config = getChainConfig(chainId);
-      const provider = getProvider(chainId);
-      const node = getNodeForLabel(label, chainId);
-      const domain = formatDomainName(label, chainId);
+      const resolved = resolveName(name, opts.chain);
+      const config = getChainConfig(resolved.chainId);
+      const provider = getProvider(resolved.chainId);
 
       const registry = new ethers.Contract(config.ID_REGISTRY, REGISTRY_ABI, provider);
 
       // Fetch onchain data
       const [owner, ethAddr, isLocked] = await Promise.all([
-        registry.owner(node),
-        registry.getFunction("addr(bytes32)").staticCall(node).catch(() => ethers.ZeroAddress),
-        registry.isLocked(node).catch(() => false),
+        registry.owner(resolved.node),
+        registry.getFunction("addr(bytes32)").staticCall(resolved.node).catch(() => ethers.ZeroAddress),
+        registry.isLocked(resolved.node).catch(() => false),
       ]);
 
       if (owner === ethers.ZeroAddress) {
-        console.log(chalk.yellow(`${domain} is not registered.`));
+        console.log(chalk.yellow(`${resolved.domain} is not registered.`));
         return;
       }
 
-      console.log(chalk.bold(domain));
-      console.log(`  Node:    ${chalk.dim(node)}`);
+      console.log(chalk.bold(resolved.domain));
+      console.log(`  Node:    ${chalk.dim(resolved.node)}`);
       console.log(`  Owner:   ${owner}`);
       console.log(`  Locked:  ${isLocked ? chalk.green("yes") : chalk.dim("no")}`);
       if (ethAddr !== ethers.ZeroAddress) {
@@ -42,7 +40,7 @@ export const infoCommand = new Command("info")
 
       // Try indexer for more details
       try {
-        const res = await indexerFetch(`/api/domains/${node}`);
+        const res = await indexerFetch(`/api/domains/${resolved.node}`);
         if (res.ok) {
           const data = await res.json();
           if (data.lockExpiration) {
@@ -56,9 +54,9 @@ export const infoCommand = new Command("info")
         // Indexer unavailable, skip
       }
 
-      // Fetch records from indexer (public endpoint, no API key needed)
+      // Fetch records from indexer (public endpoint)
       try {
-        const res = await indexerFetch(`/api/domains/${node}/records`);
+        const res = await indexerFetch(`/api/domains/${resolved.node}/records`);
         if (res.ok) {
           const records = await res.json();
           if (records.textRecords?.length) {
