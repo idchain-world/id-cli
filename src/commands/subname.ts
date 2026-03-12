@@ -12,6 +12,7 @@ export const createSubnameCommand = new Command("create-subname")
   .requiredOption("--parent <name>", "Parent name (e.g., agent-0, agent-0.base.xid.eth)")
   .option("-c, --chain <chain>", "Chain", "base")
   .option("--owner <address>", "Owner address (defaults to your wallet)")
+  .option("--dry-run", "Show transaction proposal without executing")
   .action(async (sublabel, opts) => {
     try {
       const parent = resolveName(opts.parent, opts.chain);

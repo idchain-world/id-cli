@@ -10,6 +10,7 @@ export const mintCommand = new Command("mint-usdc")
   .description("Mint test USDC (testnet only)")
   .option("-c, --chain <chain>", "Chain", "sepolia")
   .option("-a, --amount <amount>", "Amount in USDC", "100")
+  .option("--dry-run", "Show transaction proposal without executing")
   .action(async (opts) => {
     try {
       const chainId = resolveChain(opts.chain);

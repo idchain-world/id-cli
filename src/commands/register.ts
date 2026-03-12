@@ -14,6 +14,7 @@ export const registerCommand = new Command("register")
   .option("--text <pairs...>", "Text records as key=value pairs")
   .option("--address <addr>", "Set ETH address record to this address")
   .option("--referrer <addr>", "Referrer address for fee sharing")
+  .option("--dry-run", "Show transaction proposal without executing")
   .action(async (opts) => {
     try {
       const chainId = resolveChain(opts.chain);

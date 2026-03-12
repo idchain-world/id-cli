@@ -67,6 +67,7 @@ export const setTextCommand = new Command("set-text")
   .argument("<key>", "Record key")
   .argument("<value>", "Record value")
   .option("-c, --chain <chain>", "Chain", "base")
+  .option("--dry-run", "Show transaction proposal without executing")
   .action(async (name, key, value, opts) => {
     try {
       const resolved = resolveName(name, opts.chain);
@@ -105,6 +106,7 @@ export const setAddrCommand = new Command("set-addr")
   .argument("<address>", "Address value")
   .option("-c, --chain <chain>", "Chain", "base")
   .option("--coin-type <type>", "Coin type (default: 60 for ETH)", "60")
+  .option("--dry-run", "Show transaction proposal without executing")
   .action(async (name, address, opts) => {
     try {
       const resolved = resolveName(name, opts.chain);
@@ -165,6 +167,7 @@ export const setContenthashCommand = new Command("set-contenthash")
   .argument("<name>", "Name (e.g., agent-0, neo.agent-0, agent-0.base.xid.eth)")
   .argument("<hash>", "Content hash (hex)")
   .option("-c, --chain <chain>", "Chain", "base")
+  .option("--dry-run", "Show transaction proposal without executing")
   .action(async (name, hash, opts) => {
     try {
       const resolved = resolveName(name, opts.chain);

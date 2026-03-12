@@ -48,6 +48,7 @@ export const registerAgentCommand = new Command("register-agent")
   .option("--mcp <endpoint>", "Add an MCP service endpoint")
   .option("--http <endpoint>", "Add an HTTP service endpoint")
   .option("--link", "Also set the ENSIP-25 text record to link the agent to the name")
+  .option("--dry-run", "Show transaction proposal without executing")
   .action(async (name, opts) => {
     try {
       const registryChainId = resolveChain(opts.chain);
@@ -159,6 +160,7 @@ export const linkAgentCommand = new Command("link-agent")
   .argument("<agentId>", "ERC-8004 agent ID")
   .option("-c, --chain <chain>", "Chain where the ERC-8004 registry lives", "base")
   .option("--name-chain <chain>", "Chain where the ENS name lives (if different)")
+  .option("--dry-run", "Show transaction proposal without executing")
   .action(async (name, agentId, opts) => {
     try {
       const registryChainId = resolveChain(opts.chain);

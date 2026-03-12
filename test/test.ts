@@ -112,7 +112,7 @@ console.log("");
 
 // ─── Help & version ──────────────────────────────────────────────────────────
 
-test("--help: shows all commands and --dry-run", () => {
+test("--help: shows all commands", () => {
   const output = run("--help");
   assertIncludes(output, "register");
   assertIncludes(output, "renew");
@@ -128,6 +128,10 @@ test("--help: shows all commands and --dry-run", () => {
   assertIncludes(output, "link-agent");
   assertIncludes(output, "explore");
   assertIncludes(output, "mint-usdc");
+});
+
+test("--help: register shows --dry-run option", () => {
+  const output = run("register --help");
   assertIncludes(output, "dry-run");
 });
 
@@ -471,7 +475,7 @@ test("renew: fails on nonexistent name", () => {
 
 test("dry-run: transfer shows proposal without executing", () => {
   const output = run(
-    `--dry-run transfer ${registeredLabel} --to ${ANVIL_ACCOUNT_0} --chain ${CHAIN}`
+    `transfer ${registeredLabel} --to ${ANVIL_ACCOUNT_0} --chain ${CHAIN} --dry-run`
   );
   assertIncludes(output, "Transaction Proposal");
   assertIncludes(output, "setOwner");
@@ -481,7 +485,7 @@ test("dry-run: transfer shows proposal without executing", () => {
 
 test("dry-run: set-text shows proposal", () => {
   const output = run(
-    `--dry-run set-text ${registeredLabel} description "test" --chain ${CHAIN}`
+    `set-text ${registeredLabel} description "test" --chain ${CHAIN} --dry-run`
   );
   assertIncludes(output, "Transaction Proposal");
   assertIncludes(output, "setText");
@@ -490,7 +494,7 @@ test("dry-run: set-text shows proposal", () => {
 
 test("dry-run: create-subname shows proposal", () => {
   const output = run(
-    `--dry-run create-subname dry-sub --parent ${registeredLabel} --chain ${CHAIN}`
+    `create-subname dry-sub --parent ${registeredLabel} --chain ${CHAIN} --dry-run`
   );
   assertIncludes(output, "Transaction Proposal");
   assertIncludes(output, "setSubnodeOwner");
@@ -499,7 +503,7 @@ test("dry-run: create-subname shows proposal", () => {
 
 test("dry-run: register shows proposal with permit note", () => {
   const output = run(
-    `--dry-run register --chain ${CHAIN} --duration 1y`
+    `register --chain ${CHAIN} --duration 1y --dry-run`
   );
   assertIncludes(output, "Transaction Proposal");
   assertIncludes(output, "IDAgentRegistrar");
@@ -508,7 +512,7 @@ test("dry-run: register shows proposal with permit note", () => {
 
 test("dry-run: renew shows proposal with permit note", () => {
   const output = run(
-    `--dry-run renew ${registeredLabel} --chain ${CHAIN} --duration 1y`
+    `renew ${registeredLabel} --chain ${CHAIN} --duration 1y --dry-run`
   );
   assertIncludes(output, "Transaction Proposal");
   assertIncludes(output, "IDAgentLockController");

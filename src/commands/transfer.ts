@@ -11,6 +11,7 @@ export const transferCommand = new Command("transfer")
   .argument("<name>", "Name (e.g., agent-0, neo.agent-0, agent-0.base.xid.eth)")
   .requiredOption("--to <address>", "New owner address")
   .option("-c, --chain <chain>", "Chain", "base")
+  .option("--dry-run", "Show transaction proposal without executing")
   .action(async (name, opts) => {
     try {
       const resolved = resolveName(name, opts.chain);

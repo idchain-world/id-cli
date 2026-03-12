@@ -12,6 +12,7 @@ export const renewCommand = new Command("renew")
   .option("-c, --chain <chain>", "Chain", "base")
   .option("-d, --duration <duration>", "Renewal duration", "1y")
   .option("--referrer <addr>", "Referrer address")
+  .option("--dry-run", "Show transaction proposal without executing")
   .action(async (name, opts) => {
     try {
       const resolved = resolveName(name, opts.chain);
