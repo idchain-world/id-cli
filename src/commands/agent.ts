@@ -4,7 +4,7 @@ import chalk from "chalk";
 import { resolveChain, getChainConfig } from "../config.js";
 import { getWallet } from "../provider.js";
 import { IDENTITY_REGISTRY_ABI, REGISTRY_ABI } from "../abi.js";
-import { resolveName } from "../utils.js";
+import { resolveName, isDryRun, proposeTx } from "../utils.js";
 
 /**
  * ERC-7930 interoperable address encoding for ENSIP-25 text record keys.
@@ -70,6 +70,32 @@ export const registerAgentCommand = new Command("register-agent")
 
       const agentData = { name: resolved.domain, services };
       const agentURI = "data:application/json;base64," + Buffer.from(JSON.stringify(agentData)).toString("base64");
+
+      if (isDryRun()) {
+        proposeTx({
+          action: `Register agent for ${resolved.domain} on ERC-8004`,
+          chainId: registryChainId,
+          contractName: "IdentityRegistry (ERC-8004)",
+          contractAddress: registryConfig.IDENTITY_REGISTRY_8004,
+          functionAbi: "function register(string agentURI) returns (uint256)",
+          args: [agentURI],
+          argLabels: ["agentURI"],
+          notes: [
+            `Agent name: ${resolved.domain}`,
+            `Services: ${services.map((s) => s.name).join(", ")}`,
+            ...(opts.link ? ["Will also set ENSIP-25 text record after registration."] : []),
+          ],
+        });
+        if (opts.link) {
+          const nameConfig = getChainConfig(nameChainId);
+          console.log(chalk.dim("\n  ENSIP-25 linking (second transaction):"));
+          console.log(chalk.dim(`    Contract: IDRegistry (${nameConfig.ID_REGISTRY})`));
+          console.log(chalk.dim(`    Function: setText(node, key, "1")`));
+          console.log(chalk.dim(`    Key format: agent-registration[erc7930][agentId]`));
+          console.log(chalk.dim(`    (Agent ID determined after first tx)`));
+        }
+        return;
+      }
 
       console.log(chalk.dim(`Registering on ERC-8004 IdentityRegistry (${registryConfig.name})...`));
       console.log(chalk.dim(`Agent URI: ${resolved.domain}`));
@@ -139,11 +165,28 @@ export const linkAgentCommand = new Command("link-agent")
       const registryConfig = getChainConfig(registryChainId);
       const nameChainId = opts.nameChain ? resolveChain(opts.nameChain) : registryChainId;
       const nameConfig = getChainConfig(nameChainId);
-      const wallet = getWallet(nameChainId);
       const resolved = resolveName(name, opts.nameChain || opts.chain);
 
       const ensip25Key = buildEnsip25Key(registryChainId, registryConfig.IDENTITY_REGISTRY_8004, agentId);
 
+      if (isDryRun()) {
+        proposeTx({
+          action: `Link agent ${agentId} to ${resolved.domain} via ENSIP-25`,
+          chainId: nameChainId,
+          contractName: "IDRegistry",
+          contractAddress: nameConfig.ID_REGISTRY,
+          functionAbi: "function setText(bytes32 node, string key, string value)",
+          args: [resolved.node, ensip25Key, "1"],
+          argLabels: ["node", "key", "value"],
+          notes: [
+            `ENSIP-25 key: ${ensip25Key}`,
+            `Registry: ${registryConfig.IDENTITY_REGISTRY_8004} (${registryConfig.name})`,
+          ],
+        });
+        return;
+      }
+
+      const wallet = getWallet(nameChainId);
       console.log(chalk.dim(`Linking agent ${agentId} to ${resolved.domain}...`));
       console.log(chalk.dim(`Key: ${ensip25Key}`));
 

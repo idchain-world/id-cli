@@ -1,4 +1,5 @@
 import { ethers } from "ethers";
+import chalk from "chalk";
 import { getChainConfig, resolveChain, CHAIN_CONFIGS, INDEXER_BASE_URL, type ChainConfig } from "./config.js";
 
 export function labelhash(label: string): string {
@@ -132,11 +133,76 @@ export async function signUsdcPermit(
 }
 
 export async function indexerFetch(path: string): Promise<Response> {
-  const apiKey = process.env.INDEXER_API_KEY || process.env.API_KEY || "";
-  const url = `${INDEXER_BASE_URL}${path}`;
-  const headers: Record<string, string> = { "Content-Type": "application/json" };
-  if (apiKey) {
-    headers["Authorization"] = `Bearer ${apiKey}`;
+  // Strip /api prefix since we route through the website proxy at /api/indexer
+  const cleanPath = path.startsWith("/api") ? path.slice(4) : path;
+  const url = `${INDEXER_BASE_URL}${cleanPath}`;
+  const headers: Record<string, string> = {};
+  // Add auth header when using a custom indexer URL directly
+  if (process.env.INDEXER_URL) {
+    const apiKey = process.env.INDEXER_API_KEY || process.env.API_KEY || "";
+    if (apiKey) headers["Authorization"] = `Bearer ${apiKey}`;
   }
-  return fetch(url, { headers });
+  return fetch(url, Object.keys(headers).length ? { headers } : undefined);
+}
+
+// ── Dry-run mode ──────────────────────────────────────────────────────────────
+
+export function isDryRun(): boolean {
+  return process.argv.includes("--dry-run");
+}
+
+export interface TxProposal {
+  action: string;
+  chainId: number;
+  contractName: string;
+  contractAddress: string;
+  functionAbi: string;
+  args: any[];
+  argLabels: string[];
+  notes?: string[];
+}
+
+export function proposeTx(p: TxProposal): void {
+  const config = getChainConfig(p.chainId);
+  const iface = new ethers.Interface([p.functionAbi]);
+  const fragment = iface.fragments[0] as ethers.FunctionFragment;
+  const calldata = iface.encodeFunctionData(fragment, p.args);
+  const selector = calldata.slice(0, 10);
+
+  console.log("");
+  console.log(chalk.bold("Transaction Proposal"));
+  console.log("=".repeat(50));
+  console.log(`  ${chalk.dim("Action:")}     ${p.action}`);
+  console.log(`  ${chalk.dim("Chain:")}      ${config.name} (${p.chainId})`);
+  console.log(`  ${chalk.dim("Contract:")}   ${p.contractName}`);
+  console.log(`               ${p.contractAddress}`);
+  console.log(`  ${chalk.dim("Function:")}   ${fragment.format("sighash")}`);
+  console.log(`  ${chalk.dim("Selector:")}   ${selector}`);
+  console.log("");
+  console.log(chalk.dim("  Arguments:"));
+  for (let i = 0; i < p.argLabels.length; i++) {
+    const val = p.args[i];
+    let display: string;
+    if (typeof val === "bigint") display = val.toString();
+    else if (Array.isArray(val)) display = val.length ? JSON.stringify(val) : "[]";
+    else display = String(val);
+    console.log(`    ${p.argLabels[i].padEnd(16)} ${display}`);
+  }
+  console.log("");
+  console.log(chalk.dim("  Calldata:"));
+  // Split long calldata into lines of 66 chars (0x + 64 hex)
+  for (let i = 0; i < calldata.length; i += 66) {
+    console.log(`    ${calldata.slice(i, i + 66)}`);
+  }
+  if (p.notes?.length) {
+    console.log("");
+    console.log(chalk.dim("  Notes:"));
+    for (const note of p.notes) {
+      console.log(`    ${note}`);
+    }
+  }
+  console.log("");
+  console.log(chalk.dim("  Verify:"));
+  console.log(`    ${config.explorer}/address/${p.contractAddress}#writeContract`);
+  console.log("=".repeat(50));
 }

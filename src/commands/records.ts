@@ -4,7 +4,7 @@ import chalk from "chalk";
 import { getChainConfig } from "../config.js";
 import { getWallet, getProvider } from "../provider.js";
 import { REGISTRY_ABI } from "../abi.js";
-import { resolveName, indexerFetch } from "../utils.js";
+import { resolveName, indexerFetch, isDryRun, proposeTx } from "../utils.js";
 
 export const recordsCommand = new Command("records")
   .description("Show all records for a name")
@@ -71,6 +71,20 @@ export const setTextCommand = new Command("set-text")
     try {
       const resolved = resolveName(name, opts.chain);
       const config = getChainConfig(resolved.chainId);
+
+      if (isDryRun()) {
+        proposeTx({
+          action: `Set text record "${key}" on ${resolved.domain}`,
+          chainId: resolved.chainId,
+          contractName: "IDRegistry",
+          contractAddress: config.ID_REGISTRY,
+          functionAbi: "function setText(bytes32 node, string key, string value)",
+          args: [resolved.node, key, value],
+          argLabels: ["node", "key", "value"],
+        });
+        return;
+      }
+
       const wallet = getWallet(resolved.chainId);
       const registry = new ethers.Contract(config.ID_REGISTRY, REGISTRY_ABI, wallet);
 
@@ -95,10 +109,37 @@ export const setAddrCommand = new Command("set-addr")
     try {
       const resolved = resolveName(name, opts.chain);
       const config = getChainConfig(resolved.chainId);
+      const coinType = parseInt(opts.coinType);
+
+      if (isDryRun()) {
+        if (coinType === 60) {
+          proposeTx({
+            action: `Set ETH address on ${resolved.domain}`,
+            chainId: resolved.chainId,
+            contractName: "IDRegistry",
+            contractAddress: config.ID_REGISTRY,
+            functionAbi: "function setAddr(bytes32 node, address addr)",
+            args: [resolved.node, address],
+            argLabels: ["node", "addr"],
+          });
+        } else {
+          const addrBytes = ethers.getBytes(address);
+          proposeTx({
+            action: `Set coin ${coinType} address on ${resolved.domain}`,
+            chainId: resolved.chainId,
+            contractName: "IDRegistry",
+            contractAddress: config.ID_REGISTRY,
+            functionAbi: "function setAddr(bytes32 node, uint256 coinType, bytes newAddress)",
+            args: [resolved.node, coinType, addrBytes],
+            argLabels: ["node", "coinType", "newAddress"],
+          });
+        }
+        return;
+      }
+
       const wallet = getWallet(resolved.chainId);
       const registry = new ethers.Contract(config.ID_REGISTRY, REGISTRY_ABI, wallet);
 
-      const coinType = parseInt(opts.coinType);
       if (coinType === 60) {
         console.log(chalk.dim(`Setting ETH address on ${resolved.domain}...`));
         const tx = await registry.getFunction("setAddr(bytes32,address)").send(resolved.node, address);
@@ -128,6 +169,20 @@ export const setContenthashCommand = new Command("set-contenthash")
     try {
       const resolved = resolveName(name, opts.chain);
       const config = getChainConfig(resolved.chainId);
+
+      if (isDryRun()) {
+        proposeTx({
+          action: `Set content hash on ${resolved.domain}`,
+          chainId: resolved.chainId,
+          contractName: "IDRegistry",
+          contractAddress: config.ID_REGISTRY,
+          functionAbi: "function setContenthash(bytes32 node, bytes hash)",
+          args: [resolved.node, hash],
+          argLabels: ["node", "hash"],
+        });
+        return;
+      }
+
       const wallet = getWallet(resolved.chainId);
       const registry = new ethers.Contract(config.ID_REGISTRY, REGISTRY_ABI, wallet);
 

@@ -16,7 +16,8 @@ const program = new Command();
 program
   .name("idcli")
   .description("CLI for ID Chain agent name registration and management")
-  .version("0.1.0");
+  .version("0.1.0")
+  .option("--dry-run", "Show transaction proposal without executing");
 
 program.addCommand(registerCommand);
 program.addCommand(renewCommand);

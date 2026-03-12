@@ -4,7 +4,7 @@ import chalk from "chalk";
 import { getChainConfig } from "../config.js";
 import { getWallet } from "../provider.js";
 import { LOCK_CONTROLLER_ABI, USDC_ABI } from "../abi.js";
-import { resolveName, formatUsdc, parseDuration, signUsdcPermit } from "../utils.js";
+import { resolveName, formatUsdc, parseDuration, signUsdcPermit, isDryRun, proposeTx } from "../utils.js";
 
 export const renewCommand = new Command("renew")
   .description("Renew an agent name")
@@ -34,13 +34,32 @@ export const renewCommand = new Command("renew")
         process.exit(1);
       }
 
+      const referrer = opts.referrer || ethers.ZeroAddress;
+
+      if (isDryRun()) {
+        proposeTx({
+          action: `Renew ${resolved.domain}`,
+          chainId: resolved.chainId,
+          contractName: "IDAgentLockController",
+          contractAddress: config.ID_LOCK_CONTROLLER,
+          functionAbi: LOCK_CONTROLLER_ABI.find(a => a.includes("function renew"))!,
+          args: [config.PARENT_NODE, resolved.topLabel, referrer, duration, price, 0n, 0, ethers.ZeroHash, ethers.ZeroHash],
+          argLabels: ["parentNode", "label", "referrer", "duration", "permitValue", "permitDeadline", "permitV", "permitR", "permitS"],
+          notes: [
+            `Cost: ${formatUsdc(price)} USDC`,
+            "Permit fields (v/r/s/deadline) are placeholders.",
+            "A USDC EIP-2612 permit will be signed at execution time.",
+          ],
+        });
+        return;
+      }
+
       // Sign permit
       console.log(chalk.dim("Signing USDC permit..."));
       const permit = await signUsdcPermit(wallet, usdc, config.ID_LOCK_CONTROLLER, price, resolved.chainId);
 
-      // Renew — uses the top-level label (direct child of PARENT_NODE)
+      // Renew
       console.log(chalk.dim("Submitting renewal..."));
-      const referrer = opts.referrer || ethers.ZeroAddress;
       const tx = await controller.renew(
         config.PARENT_NODE, resolved.topLabel, referrer, duration,
         price, permit.deadline, permit.v, permit.r, permit.s

@@ -4,7 +4,7 @@ import chalk from "chalk";
 import { getChainConfig } from "../config.js";
 import { getWallet } from "../provider.js";
 import { REGISTRY_ABI } from "../abi.js";
-import { resolveName, indexerFetch } from "../utils.js";
+import { resolveName, indexerFetch, isDryRun, proposeTx } from "../utils.js";
 
 export const createSubnameCommand = new Command("create-subname")
   .description("Create a subname under an agent")
@@ -20,6 +20,19 @@ export const createSubnameCommand = new Command("create-subname")
       const owner = opts.owner || wallet.address;
 
       const fullDomain = `${sublabel}.${parent.domain}`;
+
+      if (isDryRun()) {
+        proposeTx({
+          action: `Create subname ${fullDomain}`,
+          chainId: parent.chainId,
+          contractName: "IDRegistry",
+          contractAddress: config.ID_REGISTRY,
+          functionAbi: "function setSubnodeOwner(bytes32 node, string label, address newOwner) returns (bytes32)",
+          args: [parent.node, sublabel, owner],
+          argLabels: ["parentNode", "label", "newOwner"],
+        });
+        return;
+      }
 
       const registry = new ethers.Contract(config.ID_REGISTRY, REGISTRY_ABI, wallet);
 

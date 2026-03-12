@@ -4,7 +4,7 @@ import chalk from "chalk";
 import { getChainConfig } from "../config.js";
 import { getWallet } from "../provider.js";
 import { REGISTRY_ABI } from "../abi.js";
-import { resolveName } from "../utils.js";
+import { resolveName, isDryRun, proposeTx } from "../utils.js";
 
 export const transferCommand = new Command("transfer")
   .description("Transfer ownership of an agent name")
@@ -16,6 +16,19 @@ export const transferCommand = new Command("transfer")
       const resolved = resolveName(name, opts.chain);
       const config = getChainConfig(resolved.chainId);
       const wallet = getWallet(resolved.chainId);
+
+      if (isDryRun()) {
+        proposeTx({
+          action: `Transfer ${resolved.domain} to ${opts.to}`,
+          chainId: resolved.chainId,
+          contractName: "IDRegistry",
+          contractAddress: config.ID_REGISTRY,
+          functionAbi: "function setOwner(bytes32 node, address newOwner)",
+          args: [resolved.node, opts.to],
+          argLabels: ["node", "newOwner"],
+        });
+        return;
+      }
 
       const registry = new ethers.Contract(config.ID_REGISTRY, REGISTRY_ABI, wallet);
 

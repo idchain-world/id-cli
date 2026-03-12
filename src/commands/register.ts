@@ -4,7 +4,7 @@ import chalk from "chalk";
 import { resolveChain, getChainConfig } from "../config.js";
 import { getWallet } from "../provider.js";
 import { REGISTRAR_ABI, USDC_ABI } from "../abi.js";
-import { formatDomainName, formatUsdc, parseDuration, signUsdcPermit } from "../utils.js";
+import { formatDomainName, formatUsdc, parseDuration, signUsdcPermit, isDryRun, proposeTx } from "../utils.js";
 
 export const registerCommand = new Command("register")
   .description("Register a new agent name")
@@ -68,6 +68,33 @@ export const registerCommand = new Command("register")
       }
 
       const referrer = opts.referrer || ethers.ZeroAddress;
+
+      if (isDryRun()) {
+        const fnAbi = opts.sublabel
+          ? REGISTRAR_ABI.find(a => a.includes("registerWithParent"))!
+          : REGISTRAR_ABI.find(a => a.includes("function register("))!;
+        const args = opts.sublabel
+          ? [wallet.address, referrer, duration, opts.sublabel, keys, values, coinTypes, addresses, "0x", [], [], price, 0n, 0, ethers.ZeroHash, ethers.ZeroHash]
+          : [wallet.address, referrer, duration, keys, values, coinTypes, addresses, "0x", [], [], price, 0n, 0, ethers.ZeroHash, ethers.ZeroHash];
+        const argLabels = opts.sublabel
+          ? ["owner", "referrer", "duration", "sublabel", "textKeys", "textValues", "coinTypes", "addresses", "contentHash", "dataKeys", "dataValues", "permitValue", "permitDeadline", "permitV", "permitR", "permitS"]
+          : ["owner", "referrer", "duration", "textKeys", "textValues", "coinTypes", "addresses", "contentHash", "dataKeys", "dataValues", "permitValue", "permitDeadline", "permitV", "permitR", "permitS"];
+        proposeTx({
+          action: `Register ${domainName}`,
+          chainId,
+          contractName: "IDAgentRegistrar",
+          contractAddress: config.ID_AGENT_REGISTRAR,
+          functionAbi: fnAbi,
+          args,
+          argLabels,
+          notes: [
+            `Cost: ${formatUsdc(price)} USDC`,
+            "Permit fields (v/r/s/deadline) are placeholders.",
+            "A USDC EIP-2612 permit will be signed at execution time.",
+          ],
+        });
+        return;
+      }
 
       // Sign USDC permit
       console.log(chalk.dim("Signing USDC permit..."));

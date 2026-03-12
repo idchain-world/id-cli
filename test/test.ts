@@ -112,7 +112,7 @@ console.log("");
 
 // ─── Help & version ──────────────────────────────────────────────────────────
 
-test("--help: shows all commands", () => {
+test("--help: shows all commands and --dry-run", () => {
   const output = run("--help");
   assertIncludes(output, "register");
   assertIncludes(output, "renew");
@@ -128,6 +128,7 @@ test("--help: shows all commands", () => {
   assertIncludes(output, "link-agent");
   assertIncludes(output, "explore");
   assertIncludes(output, "mint-usdc");
+  assertIncludes(output, "dry-run");
 });
 
 test("--version: shows version", () => {
@@ -464,6 +465,54 @@ test("renew: fails on nonexistent name", () => {
   );
   // Should fail with a contract error
   assert(output.length > 0, "Expected error output");
+});
+
+// ─── Dry-run mode ───────────────────────────────────────────────────────────
+
+test("dry-run: transfer shows proposal without executing", () => {
+  const output = run(
+    `--dry-run transfer ${registeredLabel} --to ${ANVIL_ACCOUNT_0} --chain ${CHAIN}`
+  );
+  assertIncludes(output, "Transaction Proposal");
+  assertIncludes(output, "setOwner");
+  assertIncludes(output, "IDRegistry");
+  assertIncludes(output, "Calldata:");
+});
+
+test("dry-run: set-text shows proposal", () => {
+  const output = run(
+    `--dry-run set-text ${registeredLabel} description "test" --chain ${CHAIN}`
+  );
+  assertIncludes(output, "Transaction Proposal");
+  assertIncludes(output, "setText");
+  assertIncludes(output, "Calldata:");
+});
+
+test("dry-run: create-subname shows proposal", () => {
+  const output = run(
+    `--dry-run create-subname dry-sub --parent ${registeredLabel} --chain ${CHAIN}`
+  );
+  assertIncludes(output, "Transaction Proposal");
+  assertIncludes(output, "setSubnodeOwner");
+  assertIncludes(output, "Calldata:");
+});
+
+test("dry-run: register shows proposal with permit note", () => {
+  const output = run(
+    `--dry-run register --chain ${CHAIN} --duration 1y`
+  );
+  assertIncludes(output, "Transaction Proposal");
+  assertIncludes(output, "IDAgentRegistrar");
+  assertIncludes(output, "permit");
+});
+
+test("dry-run: renew shows proposal with permit note", () => {
+  const output = run(
+    `--dry-run renew ${registeredLabel} --chain ${CHAIN} --duration 1y`
+  );
+  assertIncludes(output, "Transaction Proposal");
+  assertIncludes(output, "IDAgentLockController");
+  assertIncludes(output, "permit");
 });
 
 // ─── Summary ─────────────────────────────────────────────────────────────────

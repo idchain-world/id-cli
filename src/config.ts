@@ -4,6 +4,7 @@ export interface ChainConfig {
   shortName: string;
   suffix: string;
   rpc: string;
+  explorer: string;
   PARENT_NODE: string;
   ID_REGISTRY: string;
   ID_RESOLVER: string;
@@ -20,6 +21,7 @@ export const CHAIN_CONFIGS: Record<number, ChainConfig> = {
     shortName: "eth",
     suffix: ".eth.xid.eth",
     rpc: "https://ethereum-rpc.publicnode.com",
+    explorer: "https://etherscan.io",
     PARENT_NODE: "0xa273a9509b9d0b02e78cd5d8e1007180d352e876988223ec1f0121ef98cdc15c",
     ID_REGISTRY: "0x09B4E31944DBa5608861ea5C5D40a677774F8723",
     ID_RESOLVER: "0x6F48C14C0C8426560B2b64240D17dB5f4F96FB27",
@@ -34,6 +36,7 @@ export const CHAIN_CONFIGS: Record<number, ChainConfig> = {
     shortName: "base",
     suffix: ".base.xid.eth",
     rpc: "https://mainnet.base.org",
+    explorer: "https://basescan.org",
     PARENT_NODE: "0xc57c8eec953c0f2a914d97440b1218fec428fb73110e2ebf4cb01b1a097dcba8",
     ID_REGISTRY: "0x531e8Cf562eBa0631d0D1e97B747D6468674743B",
     ID_RESOLVER: "0x37d85344d9c218B5C3FEAdc3632dA7996Bd8b195",
@@ -48,6 +51,7 @@ export const CHAIN_CONFIGS: Record<number, ChainConfig> = {
     shortName: "op",
     suffix: ".op.xid.eth",
     rpc: "https://mainnet.optimism.io",
+    explorer: "https://optimistic.etherscan.io",
     PARENT_NODE: "0xca47f342df0708ed660b4ef4839ed09cc88126102bffd13201a62883f4c8d1a6",
     ID_REGISTRY: "0xACE37c9260F529933287ce04cb9f10F3C1D64E63",
     ID_RESOLVER: "0x030fEB2DfcA65628Ae7AD72770a262593Be4265d",
@@ -62,6 +66,7 @@ export const CHAIN_CONFIGS: Record<number, ChainConfig> = {
     shortName: "arb",
     suffix: ".arb.xid.eth",
     rpc: "https://arb1.arbitrum.io/rpc",
+    explorer: "https://arbiscan.io",
     PARENT_NODE: "0x4f382ff48d51a837301d5e3b5190ba3b3c336089d11a48d7e48c8ef4c0c2e367",
     ID_REGISTRY: "0xACE37c9260F529933287ce04cb9f10F3C1D64E63",
     ID_RESOLVER: "0x030fEB2DfcA65628Ae7AD72770a262593Be4265d",
@@ -76,6 +81,7 @@ export const CHAIN_CONFIGS: Record<number, ChainConfig> = {
     shortName: "sepolia",
     suffix: ".eth.xid.eth",
     rpc: "https://ethereum-sepolia-rpc.publicnode.com",
+    explorer: "https://sepolia.etherscan.io",
     PARENT_NODE: "0xa273a9509b9d0b02e78cd5d8e1007180d352e876988223ec1f0121ef98cdc15c",
     ID_REGISTRY: "0xe55bEde85c78Af52A5F261DF1A60cb9A46d6d7D8",
     ID_RESOLVER: "0x040cFE01B595a047C2401BB9e3fF2AeccF64cdCd",
@@ -87,7 +93,7 @@ export const CHAIN_CONFIGS: Record<number, ChainConfig> = {
 };
 
 export const DEFAULT_CHAIN = 8453;
-export const INDEXER_BASE_URL = "https://idx-indexer.onrender.com";
+export const INDEXER_BASE_URL = process.env.INDEXER_URL || "https://idchain.world/api/indexer";
 
 export function getChainConfig(chainId: number): ChainConfig {
   const config = CHAIN_CONFIGS[chainId];
