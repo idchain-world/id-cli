@@ -20,7 +20,8 @@ program
     "Add --dry-run to any write command to see the transaction\n" +
     "proposal (calldata, contract, function) without executing."
   )
-  .version("0.1.0");
+  .version("0.1.0")
+  .option("--dry-run", "Show transaction proposal without executing");
 
 program.addCommand(registerCommand);
 program.addCommand(renewCommand);
