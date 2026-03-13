@@ -8,9 +8,15 @@ const HIDDEN_NAMES = new Set([
   "eth", "xid.eth", "eth.xid.eth", "base.xid.eth", "op.xid.eth", "arb.xid.eth",
 ]);
 
+// Map chain IDs to indexer chain names
+const INDEXER_CHAINS: Record<number, string> = {
+  1: "mainnet", 8453: "base", 10: "optimism", 42161: "arbitrum", 11155111: "sepolia",
+};
+
 export const exploreCommand = new Command("explore")
   .description("List registered agent names")
   .option("-c, --chain <chain>", "Filter by chain (e.g., base, op, eth, arb, sepolia)")
+  .option("-s, --search <query>", "Search by name or label substring")
   .option("-l, --limit <n>", "Number of results", "20")
   .option("-o, --offset <n>", "Offset for pagination", "0")
   .option("--owner <address>", "Filter by owner address")
@@ -26,7 +32,12 @@ export const exploreCommand = new Command("explore")
       if (opts.owner) {
         path = `/api/domains/by-owner/${opts.owner}?limit=${requestLimit}&offset=${opts.offset}`;
       } else {
-        path = `/api/domains?limit=${requestLimit}&offset=${opts.offset}`;
+        const params = new URLSearchParams();
+        params.set("limit", requestLimit.toString());
+        params.set("offset", opts.offset);
+        if (opts.search) params.set("q", opts.search);
+        if (filterByChain && chainId) params.set("chain", INDEXER_CHAINS[chainId] || "");
+        path = `/api/domains?${params}`;
       }
 
       const res = await indexerFetch(path);

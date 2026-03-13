@@ -15,11 +15,7 @@ const program = new Command();
 
 program
   .name("id-cli")
-  .description(
-    "CLI for ID Chain agent name registration and management\n\n" +
-    "Add --dry-run to any write command to see the transaction\n" +
-    "proposal (calldata, contract, function) without executing."
-  )
+  .description("CLI for ID Chain agent name registration and management")
   .version("0.1.0")
   .option("--dry-run", "Show transaction proposal without executing");
 
