@@ -5,13 +5,12 @@ CLI for ID Chain agent name registration and management. All the features of [id
 ## Setup
 
 ```bash
-cd cli
 npm install
 npm run build
 npm link     # adds `id-cli` to your PATH
 ```
 
-Create a `.env` file in the `cli/` directory:
+Create a `.env` file in the project directory:
 
 ```
 PRIVATE_KEY=0x...
