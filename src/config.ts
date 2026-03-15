@@ -95,12 +95,22 @@ export const CHAIN_CONFIGS: Record<number, ChainConfig> = {
 export const DEFAULT_CHAIN = 8453;
 export const INDEXER_BASE_URL = process.env.INDEXER_URL || "https://idchain.world/api/indexer";
 
+// Per-chain RPC env var names: RPC_URL_BASE, RPC_URL_ETH, etc.
+const RPC_ENV_KEYS: Record<number, string> = {
+  1: "RPC_URL_ETH",
+  8453: "RPC_URL_BASE",
+  10: "RPC_URL_OP",
+  42161: "RPC_URL_ARB",
+  11155111: "RPC_URL_SEPOLIA",
+};
+
 export function getChainConfig(chainId: number): ChainConfig {
   const config = CHAIN_CONFIGS[chainId];
   if (!config) throw new Error(`Unsupported chain: ${chainId}. Supported: ${Object.keys(CHAIN_CONFIGS).join(", ")}`);
 
-  // Allow RPC_URL env var to override the chain's default RPC (useful for local fork testing)
-  const rpcOverride = process.env.RPC_URL;
+  // Per-chain override > global override > built-in default
+  const perChain = RPC_ENV_KEYS[chainId] ? process.env[RPC_ENV_KEYS[chainId]] : undefined;
+  const rpcOverride = perChain || process.env.RPC_URL;
   if (rpcOverride) {
     return { ...config, rpc: rpcOverride };
   }

@@ -206,4 +206,22 @@ id-cli set-text alpha.agent-0 description "Alpha worker" --chain sepolia
 | Variable | Required | Description |
 |----------|----------|-------------|
 | `PRIVATE_KEY` | For writes | Wallet private key (with 0x prefix) |
+| `RPC_URL_BASE` | No | Custom RPC for Base |
+| `RPC_URL_ETH` | No | Custom RPC for Ethereum |
+| `RPC_URL_OP` | No | Custom RPC for Optimism |
+| `RPC_URL_ARB` | No | Custom RPC for Arbitrum |
+| `RPC_URL_SEPOLIA` | No | Custom RPC for Sepolia |
+| `RPC_URL` | No | Global RPC override (applies to all chains) |
 | `INDEXER_URL` | No | Override the default indexer API URL |
+
+### RPC Configuration
+
+The CLI ships with public RPC endpoints for each chain. These work for most use cases but may be rate-limited under heavy use. To use your own RPC provider, set the per-chain env var:
+
+```bash
+# In your .env file
+RPC_URL_BASE=https://base-mainnet.g.alchemy.com/v2/YOUR_KEY
+RPC_URL_ETH=https://eth-mainnet.g.alchemy.com/v2/YOUR_KEY
+```
+
+Per-chain variables take priority over `RPC_URL`. If neither is set, the built-in public endpoint is used.
