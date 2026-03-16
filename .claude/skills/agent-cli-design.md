@@ -62,9 +62,11 @@ Agents hallucinate in predictable patterns. Validate defensively — the agent i
 - `resolveName()` validates domain suffixes against known chains
 - USDC balance check before registration
 
-**Should add:**
-- Label format validation (alphanumeric + hyphens only)
-- Address checksum validation on `--to`, `--owner`, `--referrer` flags
+**Also implemented:**
+- `validateLabel()` — alphanumeric + hyphens only
+- `validateAddress()` — checksum validation on `--to`, `--owner`, `--referrer`, `--address`
+- `verifyOwnership()` — onchain ownership check before mutations
+- `parsePositiveInt()` — type-safe numeric parsing for `--limit`, `--offset`, `--coin-type`
 
 ---
 
@@ -114,7 +116,7 @@ Define consistent exit codes so agents can branch on failure type:
 | 4 | Not found (domain not registered) |
 | 5 | Insufficient funds (USDC balance too low) |
 
-**Current state:** All errors exit with code 1 via `process.exit(1)`. Should differentiate.
+**Implemented:** `ExitCode` enum and `CliError` class in `utils.ts`. All commands use `handleErrorJson()` which maps `CliError.exitCode` to the correct exit code.
 
 ---
 
@@ -182,10 +184,10 @@ Current state and next steps:
 - [x] Headless auth via env vars
 - [x] Bounded pagination on explore
 - [x] Input validation on chains and names
-- [ ] `--output json` with stable envelope on all commands
-- [ ] Differentiated exit codes
-- [ ] Schema/describe command for runtime introspection
-- [ ] `--select` field filtering on records and info
-- [ ] Address checksum validation
-- [ ] Label format validation
+- [x] `--output json` with stable envelope on all commands
+- [x] Differentiated exit codes (`ExitCode` enum + `CliError`)
+- [x] Schema/describe command for runtime introspection (`id-cli schema`)
+- [x] `--select` field filtering on records, `--brief` on info
+- [x] Address checksum validation (`validateAddress()`)
+- [x] Label format validation (`validateLabel()`)
 - [ ] MCP surface for typed tool invocation
