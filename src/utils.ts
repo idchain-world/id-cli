@@ -25,6 +25,36 @@ export function handleError(err: any): never {
   process.exit(exitCode);
 }
 
+// ── Input validation ─────────────────────────────────────────────────────────
+
+const LABEL_RE = /^[a-z0-9-]+$/;
+
+export function validateLabel(label: string): void {
+  if (!label) throw new CliError("Label cannot be empty.", ExitCode.INPUT_ERROR);
+  if (!LABEL_RE.test(label)) {
+    throw new CliError(
+      `Invalid label "${label}". Labels may only contain lowercase letters, digits, and hyphens.`,
+      ExitCode.INPUT_ERROR,
+    );
+  }
+}
+
+export function validateAddress(addr: string, flagName: string): string {
+  try {
+    return ethers.getAddress(addr);
+  } catch {
+    throw new CliError(`Invalid address for ${flagName}: "${addr}".`, ExitCode.INPUT_ERROR);
+  }
+}
+
+export function parsePositiveInt(value: string, flagName: string): number {
+  const n = parseInt(value, 10);
+  if (isNaN(n) || n < 0) {
+    throw new CliError(`${flagName} must be a non-negative integer, got "${value}".`, ExitCode.INPUT_ERROR);
+  }
+  return n;
+}
+
 export function labelhash(label: string): string {
   return ethers.keccak256(ethers.toUtf8Bytes(label));
 }
@@ -84,6 +114,11 @@ export function resolveName(input: string, chainFlag?: string): ResolvedName {
 function resolvePathOnChain(path: string, chainId: number): ResolvedName {
   const config = getChainConfig(chainId);
   const labels = path.split(".");
+
+  // Validate each label segment
+  for (const label of labels) {
+    validateLabel(label);
+  }
 
   // Hash from right to left: agent-0 first, then neo
   // labels = ["neo", "agent-0"] → hash agent-0 under PARENT_NODE, then neo under that

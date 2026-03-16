@@ -4,7 +4,7 @@ import chalk from "chalk";
 import { getChainConfig } from "../config.js";
 import { getWallet } from "../provider.js";
 import { REGISTRY_ABI } from "../abi.js";
-import { resolveName, indexerFetch, isDryRun, proposeTx, handleError } from "../utils.js";
+import { resolveName, indexerFetch, isDryRun, proposeTx, handleError, validateAddress, validateLabel } from "../utils.js";
 
 export const createSubnameCommand = new Command("create-subname")
   .description("Create a subname under an agent")
@@ -15,10 +15,11 @@ export const createSubnameCommand = new Command("create-subname")
   .option("--dry-run", "Show transaction proposal without executing")
   .action(async (sublabel, opts) => {
     try {
+      validateLabel(sublabel);
       const parent = resolveName(opts.parent, opts.chain);
       const config = getChainConfig(parent.chainId);
       const wallet = getWallet(parent.chainId);
-      const owner = opts.owner || wallet.address;
+      const owner = opts.owner ? validateAddress(opts.owner, "--owner") : wallet.address;
 
       const fullDomain = `${sublabel}.${parent.domain}`;
 

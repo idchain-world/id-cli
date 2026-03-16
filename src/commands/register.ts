@@ -4,7 +4,7 @@ import chalk from "chalk";
 import { resolveChain, getChainConfig } from "../config.js";
 import { getWallet } from "../provider.js";
 import { REGISTRAR_ABI, USDC_ABI } from "../abi.js";
-import { formatDomainName, formatUsdc, signUsdcPermit, isDryRun, proposeTx, CliError, ExitCode, handleError } from "../utils.js";
+import { formatDomainName, formatUsdc, signUsdcPermit, isDryRun, proposeTx, CliError, ExitCode, handleError, validateAddress, validateLabel } from "../utils.js";
 
 export const registerCommand = new Command("register")
   .description("Register a new agent name (permanent, one-time fee)")
@@ -57,15 +57,18 @@ export const registerCommand = new Command("register")
         }
       }
 
+      // Validate sublabel if provided
+      if (opts.sublabel) validateLabel(opts.sublabel);
+
       // Address records
       const coinTypes: bigint[] = [];
       const addresses: string[] = [];
       if (opts.address) {
         coinTypes.push(60n);
-        addresses.push(opts.address);
+        addresses.push(validateAddress(opts.address, "--address"));
       }
 
-      const referrer = opts.referrer || ethers.ZeroAddress;
+      const referrer = opts.referrer ? validateAddress(opts.referrer, "--referrer") : ethers.ZeroAddress;
 
       if (isDryRun()) {
         const fnAbi = opts.sublabel

@@ -1,7 +1,7 @@
 import { Command } from "commander";
 import chalk from "chalk";
 import { resolveChain, getChainConfig, CHAIN_CONFIGS } from "../config.js";
-import { indexerFetch, CliError, ExitCode, handleError } from "../utils.js";
+import { indexerFetch, CliError, ExitCode, handleError, parsePositiveInt } from "../utils.js";
 
 // Root/parent nodes that aren't agent names
 const HIDDEN_NAMES = new Set([
@@ -27,7 +27,7 @@ export const exploreCommand = new Command("explore")
       const config = chainId ? getChainConfig(chainId) : undefined;
 
       // Request extra to account for filtered entries
-      const requestLimit = parseInt(opts.limit) + 50;
+      const requestLimit = parsePositiveInt(opts.limit, "--limit") + 50;
       let path: string;
       if (opts.owner) {
         path = `/api/domains/by-owner/${opts.owner}?limit=${requestLimit}&offset=${opts.offset}`;
@@ -65,7 +65,7 @@ export const exploreCommand = new Command("explore")
         return true;
       });
 
-      const limit = parseInt(opts.limit);
+      const limit = parsePositiveInt(opts.limit, "--limit");
       const displayed = filtered.slice(0, limit);
 
       if (!displayed.length) {

@@ -4,7 +4,7 @@ import chalk from "chalk";
 import { getChainConfig } from "../config.js";
 import { getWallet } from "../provider.js";
 import { REGISTRY_ABI } from "../abi.js";
-import { resolveName, isDryRun, proposeTx, CliError, ExitCode, handleError } from "../utils.js";
+import { resolveName, isDryRun, proposeTx, CliError, ExitCode, handleError, validateAddress } from "../utils.js";
 
 export const transferCommand = new Command("transfer")
   .description("Transfer ownership of an agent name")
@@ -14,18 +14,19 @@ export const transferCommand = new Command("transfer")
   .option("--dry-run", "Show transaction proposal without executing")
   .action(async (name, opts) => {
     try {
+      const toAddress = validateAddress(opts.to, "--to");
       const resolved = resolveName(name, opts.chain);
       const config = getChainConfig(resolved.chainId);
       const wallet = getWallet(resolved.chainId);
 
       if (isDryRun()) {
         proposeTx({
-          action: `Transfer ${resolved.domain} to ${opts.to}`,
+          action: `Transfer ${resolved.domain} to ${toAddress}`,
           chainId: resolved.chainId,
           contractName: "IDRegistry",
           contractAddress: config.ID_REGISTRY,
           functionAbi: "function setOwner(bytes32 node, address newOwner)",
-          args: [resolved.node, opts.to],
+          args: [resolved.node, toAddress],
           argLabels: ["node", "newOwner"],
         });
         return;
@@ -39,11 +40,11 @@ export const transferCommand = new Command("transfer")
         throw new CliError(`You don't own ${resolved.domain}. Owner: ${currentOwner}`, ExitCode.NOT_FOUND);
       }
 
-      console.log(chalk.dim(`Transferring ${resolved.domain} to ${opts.to}`));
-      const tx = await registry.setOwner(resolved.node, opts.to);
+      console.log(chalk.dim(`Transferring ${resolved.domain} to ${toAddress}`));
+      const tx = await registry.setOwner(resolved.node, toAddress);
       console.log(`Tx: ${chalk.dim(tx.hash)}`);
       await tx.wait();
-      console.log(chalk.green(`Transferred ${chalk.bold(resolved.domain)} to ${opts.to}`));
+      console.log(chalk.green(`Transferred ${chalk.bold(resolved.domain)} to ${toAddress}`));
     } catch (err: any) {
       handleError(err);
     }
