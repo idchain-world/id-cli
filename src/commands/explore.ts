@@ -5,7 +5,7 @@ import { indexerFetch } from "../utils.js";
 
 // Root/parent nodes that aren't agent names
 const HIDDEN_NAMES = new Set([
-  "eth", "xid.eth", "eth.xid.eth", "base.xid.eth", "op.xid.eth", "arb.xid.eth",
+  "eth", "sep", "xid.eth", "eth.xid.eth", "sep.xid.eth", "base.xid.eth", "op.xid.eth", "arb.xid.eth",
 ]);
 
 // Map chain IDs to indexer chain names

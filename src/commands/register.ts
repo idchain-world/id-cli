@@ -4,12 +4,11 @@ import chalk from "chalk";
 import { resolveChain, getChainConfig } from "../config.js";
 import { getWallet } from "../provider.js";
 import { REGISTRAR_ABI, USDC_ABI } from "../abi.js";
-import { formatDomainName, formatUsdc, parseDuration, signUsdcPermit, isDryRun, proposeTx } from "../utils.js";
+import { formatDomainName, formatUsdc, signUsdcPermit, isDryRun, proposeTx } from "../utils.js";
 
 export const registerCommand = new Command("register")
-  .description("Register a new agent name")
+  .description("Register a new agent name (permanent, one-time fee)")
   .option("-c, --chain <chain>", "Chain to register on", "base")
-  .option("-d, --duration <duration>", "Registration duration", "1y")
   .option("--sublabel <name>", "Create a subname under the registered agent")
   .option("--text <pairs...>", "Text records as key=value pairs")
   .option("--address <addr>", "Set ETH address record to this address")
@@ -20,7 +19,6 @@ export const registerCommand = new Command("register")
       const chainId = resolveChain(opts.chain);
       const config = getChainConfig(chainId);
       const wallet = getWallet(chainId);
-      const duration = parseDuration(opts.duration);
 
       console.log(chalk.dim(`Chain: ${config.name} (${chainId})`));
       console.log(chalk.dim(`Wallet: ${wallet.address}`));
@@ -31,7 +29,7 @@ export const registerCommand = new Command("register")
       // Get next label and price
       const [nextLabel, price] = await Promise.all([
         registrar.nextLabel(),
-        registrar.rentPrice(duration),
+        registrar.price(),
       ]);
 
       console.log(`Next label: ${chalk.bold(nextLabel)}`);
@@ -39,7 +37,7 @@ export const registerCommand = new Command("register")
         ? `${opts.sublabel}.${nextLabel}${config.suffix}`
         : formatDomainName(nextLabel, chainId);
       console.log(`Domain: ${chalk.bold(domainName)}`);
-      console.log(`Price: ${chalk.bold(formatUsdc(price))} USDC`);
+      console.log(`Price: ${chalk.bold(formatUsdc(price))} USDC (one-time, permanent)`);
 
       // Check USDC balance
       const balance = await usdc.balanceOf(wallet.address);
@@ -75,11 +73,11 @@ export const registerCommand = new Command("register")
           ? REGISTRAR_ABI.find(a => a.includes("registerWithParent"))!
           : REGISTRAR_ABI.find(a => a.includes("function register("))!;
         const args = opts.sublabel
-          ? [wallet.address, referrer, duration, opts.sublabel, keys, values, coinTypes, addresses, "0x", [], [], price, 0n, 0, ethers.ZeroHash, ethers.ZeroHash]
-          : [wallet.address, referrer, duration, keys, values, coinTypes, addresses, "0x", [], [], price, 0n, 0, ethers.ZeroHash, ethers.ZeroHash];
+          ? [wallet.address, referrer, opts.sublabel, keys, values, coinTypes, addresses, "0x", [], [], price, 0n, 0, ethers.ZeroHash, ethers.ZeroHash]
+          : [wallet.address, referrer, keys, values, coinTypes, addresses, "0x", [], [], price, 0n, 0, ethers.ZeroHash, ethers.ZeroHash];
         const argLabels = opts.sublabel
-          ? ["owner", "referrer", "duration", "sublabel", "textKeys", "textValues", "coinTypes", "addresses", "contentHash", "dataKeys", "dataValues", "permitValue", "permitDeadline", "permitV", "permitR", "permitS"]
-          : ["owner", "referrer", "duration", "textKeys", "textValues", "coinTypes", "addresses", "contentHash", "dataKeys", "dataValues", "permitValue", "permitDeadline", "permitV", "permitR", "permitS"];
+          ? ["owner", "referrer", "sublabel", "textKeys", "textValues", "coinTypes", "addresses", "contentHash", "dataKeys", "dataValues", "permitValue", "permitDeadline", "permitV", "permitR", "permitS"]
+          : ["owner", "referrer", "textKeys", "textValues", "coinTypes", "addresses", "contentHash", "dataKeys", "dataValues", "permitValue", "permitDeadline", "permitV", "permitR", "permitS"];
         proposeTx({
           action: `Register ${domainName}`,
           chainId,
@@ -89,7 +87,7 @@ export const registerCommand = new Command("register")
           args,
           argLabels,
           notes: [
-            `Cost: ${formatUsdc(price)} USDC`,
+            `Cost: ${formatUsdc(price)} USDC (one-time, permanent)`,
             "Permit fields (v/r/s/deadline) are placeholders.",
             "A USDC EIP-2612 permit will be signed at execution time.",
           ],
@@ -97,22 +95,30 @@ export const registerCommand = new Command("register")
         return;
       }
 
-      // Sign USDC permit
-      console.log(chalk.dim("Signing USDC permit..."));
-      const permit = await signUsdcPermit(wallet, usdc, config.ID_AGENT_REGISTRAR, price, chainId);
+      // Try EIP-2612 permit, fall back to approve if not supported
+      let permit = { deadline: 0n, v: 0, r: ethers.ZeroHash, s: ethers.ZeroHash };
+      try {
+        console.log(chalk.dim("Signing USDC permit..."));
+        permit = await signUsdcPermit(wallet, usdc, config.ID_AGENT_REGISTRAR, price, chainId);
+      } catch {
+        console.log(chalk.dim("Permit not supported, using approve..."));
+        const approveTx = await usdc.approve(config.ID_AGENT_REGISTRAR, price);
+        await approveTx.wait();
+        console.log(chalk.dim("USDC approved."));
+      }
 
       // Register
       console.log(chalk.dim("Submitting registration..."));
       let tx;
       if (opts.sublabel) {
         tx = await registrar.registerWithParent(
-          wallet.address, referrer, duration, opts.sublabel,
+          wallet.address, referrer, opts.sublabel,
           keys, values, coinTypes, addresses, "0x", [], [],
           price, permit.deadline, permit.v, permit.r, permit.s
         );
       } else {
         tx = await registrar.register(
-          wallet.address, referrer, duration,
+          wallet.address, referrer,
           keys, values, coinTypes, addresses, "0x", [], [],
           price, permit.deadline, permit.v, permit.r, permit.s
         );
@@ -120,7 +126,7 @@ export const registerCommand = new Command("register")
 
       console.log(`Tx: ${chalk.dim(tx.hash)}`);
       const receipt = await tx.wait();
-      console.log(chalk.green(`Registered ${chalk.bold(domainName)}`));
+      console.log(chalk.green(`Registered ${chalk.bold(domainName)} (permanent)`));
       console.log(chalk.dim(`Gas used: ${receipt.gasUsed.toString()}`));
     } catch (err: any) {
       console.error(chalk.red(err.message));

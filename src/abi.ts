@@ -1,7 +1,7 @@
 export const REGISTRAR_ABI = [
-  "function register(address owner, address referrer, uint256 duration, string[] keys, string[] values, uint256[] coinTypes, bytes[] addresses, bytes contentHash, string[] dataKeys, bytes[] dataValues, uint256 permitValue, uint256 permitDeadline, uint8 permitV, bytes32 permitR, bytes32 permitS) returns (bytes32)",
-  "function registerWithParent(address owner, address referrer, uint256 duration, string sublabel, string[] keys, string[] values, uint256[] coinTypes, bytes[] addresses, bytes contentHash, string[] dataKeys, bytes[] dataValues, uint256 permitValue, uint256 permitDeadline, uint8 permitV, bytes32 permitR, bytes32 permitS) returns (bytes32)",
-  "function rentPrice(uint256 duration) view returns (uint256)",
+  "function register(address owner, address referrer, string[] keys, string[] values, uint256[] coinTypes, bytes[] addresses, bytes contentHash, string[] dataKeys, bytes[] dataValues, uint256 permitValue, uint256 permitDeadline, uint8 permitV, bytes32 permitR, bytes32 permitS) returns (bytes32)",
+  "function registerWithParent(address owner, address referrer, string sublabel, string[] keys, string[] values, uint256[] coinTypes, bytes[] addresses, bytes contentHash, string[] dataKeys, bytes[] dataValues, uint256 permitValue, uint256 permitDeadline, uint8 permitV, bytes32 permitR, bytes32 permitS) returns (bytes32)",
+  "function price() view returns (uint256)",
   "function nextLabel() view returns (string)",
   "function nextAgentId() view returns (uint256)",
 ];
@@ -25,13 +25,6 @@ export const REGISTRY_ABI = [
   "event ContenthashChanged(bytes32 indexed node, bytes hash)",
   "event Transfer(bytes32 indexed node, address owner)",
   "event NewSubnodeOwner(bytes32 indexed node, string indexed label, address owner)",
-];
-
-export const LOCK_CONTROLLER_ABI = [
-  "function rentPrice(uint256 duration) view returns (uint256)",
-  "function paused() view returns (bool)",
-  "function renew(bytes32 parentNode, string label, address referrer, uint256 duration, uint256 permitValue, uint256 permitDeadline, uint8 permitV, bytes32 permitR, bytes32 permitS)",
-  "event SubdomainRenewed(bytes32 indexed node, string label, uint256 cost, uint256 duration, uint256 newExpiration)",
 ];
 
 export const USDC_ABI = [

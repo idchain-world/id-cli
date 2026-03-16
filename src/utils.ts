@@ -43,7 +43,7 @@ export interface ResolvedName {
 
 export function resolveName(input: string, chainFlag?: string): ResolvedName {
   // Try to detect full domain: ends with .xid.eth
-  const suffixMatch = input.match(/^(.+?)(\.(base|eth|op|arb)\.xid\.eth)$/);
+  const suffixMatch = input.match(/^(.+?)(\.(base|eth|op|arb|sep)\.xid\.eth)$/);
   if (suffixMatch) {
     const path = suffixMatch[1];
     const suffix = suffixMatch[2];
@@ -81,20 +81,6 @@ function resolvePathOnChain(path: string, chainId: number): ResolvedName {
 
 export function formatUsdc(amount: bigint): string {
   return ethers.formatUnits(amount, 6);
-}
-
-export function parseDuration(input: string): bigint {
-  const match = input.match(/^(\d+)(d|y|days?|years?)$/i);
-  if (match) {
-    const num = BigInt(match[1]);
-    const unit = match[2].toLowerCase();
-    if (unit.startsWith("y")) return num * 365n * 24n * 60n * 60n;
-    if (unit.startsWith("d")) return num * 24n * 60n * 60n;
-  }
-  // Try as raw seconds
-  const secs = BigInt(input);
-  if (secs > 0n) return secs;
-  throw new Error(`Invalid duration: ${input}. Use format like "1y", "365d", or seconds.`);
 }
 
 export async function signUsdcPermit(

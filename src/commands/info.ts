@@ -38,20 +38,9 @@ export const infoCommand = new Command("info")
         console.log(`  ETH:     ${ethAddr}`);
       }
 
-      // Try indexer for more details
-      try {
-        const res = await indexerFetch(`/api/domains/${resolved.node}`);
-        if (res.ok) {
-          const data = await res.json();
-          if (data.lockExpiration) {
-            const expiry = new Date(Number(data.lockExpiration) * 1000);
-            const now = new Date();
-            const daysLeft = Math.floor((expiry.getTime() - now.getTime()) / 86400000);
-            console.log(`  Expires: ${expiry.toISOString().slice(0, 10)} (${daysLeft} days)`);
-          }
-        }
-      } catch {
-        // Indexer unavailable, skip
+      // Permanent names — show status
+      if (isLocked) {
+        console.log(`  Status:  ${chalk.green("permanent")}`);
       }
 
       // Fetch records from indexer (public endpoint)

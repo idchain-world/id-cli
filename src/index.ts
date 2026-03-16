@@ -2,7 +2,6 @@
 import "dotenv/config";
 import { Command } from "commander";
 import { registerCommand } from "./commands/register.js";
-import { renewCommand } from "./commands/renew.js";
 import { transferCommand } from "./commands/transfer.js";
 import { infoCommand } from "./commands/info.js";
 import { recordsCommand, setTextCommand, setAddrCommand, setContenthashCommand } from "./commands/records.js";
@@ -16,11 +15,10 @@ const program = new Command();
 program
   .name("id-cli")
   .description("CLI for ID Chain agent name registration and management")
-  .version("0.1.0")
+  .version("0.2.0")
   .option("--dry-run", "Show transaction proposal without executing");
 
 program.addCommand(registerCommand);
-program.addCommand(renewCommand);
 program.addCommand(transferCommand);
 program.addCommand(infoCommand);
 program.addCommand(recordsCommand);

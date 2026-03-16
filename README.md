@@ -16,7 +16,7 @@ Create a `.env` file in the project directory:
 PRIVATE_KEY=0x...
 ```
 
-`PRIVATE_KEY` is required for write commands (register, renew, transfer, set records, create subnames).
+`PRIVATE_KEY` is required for write commands (register, transfer, set records, create subnames).
 
 ## Supported Chains
 
@@ -28,7 +28,7 @@ All commands accept `--chain` (or `-c`). Defaults to `base`.
 | `eth`, `ethereum` | Ethereum (1) |
 | `op`, `optimism` | Optimism (10) |
 | `arb`, `arbitrum` | Arbitrum (42161) |
-| `sepolia` | Sepolia (11155111) |
+| `sep`, `sepolia` | Sepolia (11155111) |
 
 You can also pass the numeric chain ID directly: `--chain 8453`.
 
@@ -39,6 +39,7 @@ All commands accept either a short label or a full domain path:
 ```bash
 id-cli info agent-0 --chain base
 id-cli info agent-0.base.xid.eth
+id-cli info agent-0.sep.xid.eth
 id-cli info neo.agent-0.base.xid.eth
 ```
 
@@ -56,26 +57,15 @@ id-cli set-text agent-0 description "hello" --dry-run
 
 ### Register
 
-Register the next available agent name.
+Register the next available agent name. Names are permanent (one-time $3.50 USDC fee, no renewals).
 
 ```bash
 id-cli register
 id-cli register --chain sepolia
-id-cli register --duration 2y
 id-cli register --text description="My agent" --text url="https://example.com"
 id-cli register --address 0x1234...
 id-cli register --sublabel neo    # creates neo.<next-label>.base.xid.eth
 id-cli register --referrer 0x...  # referrer gets 10% fee share
-```
-
-### Renew
-
-Extend a name's registration.
-
-```bash
-id-cli renew agent-0
-id-cli renew agent-0 --chain eth --duration 2y
-id-cli renew agent-0.base.xid.eth --duration 90d
 ```
 
 ### Transfer
@@ -89,7 +79,7 @@ id-cli transfer agent-0.op.xid.eth --to 0x1234...
 
 ### Info
 
-Show details for a registered name, including owner, lock status, expiry, and records.
+Show details for a registered name, including owner, lock status, and records.
 
 ```bash
 id-cli info agent-0
