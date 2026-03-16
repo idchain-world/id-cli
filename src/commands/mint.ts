@@ -4,7 +4,8 @@ import chalk from "chalk";
 import { resolveChain, getChainConfig } from "../config.js";
 import { getWallet } from "../provider.js";
 import { USDC_ABI } from "../abi.js";
-import { formatUsdc, isDryRun, proposeTx, handleError } from "../utils.js";
+import { formatUsdc, isDryRun, proposeTx } from "../utils.js";
+import { outputSuccess, handleErrorJson, humanLog, statusLog } from "../output.js";
 
 export const mintCommand = new Command("mint-usdc")
   .description("Mint test USDC (testnet only)")
@@ -34,14 +35,19 @@ export const mintCommand = new Command("mint-usdc")
 
       const usdc = new ethers.Contract(config.MOCK_USDC, USDC_ABI, wallet);
 
-      console.log(chalk.dim(`Minting ${opts.amount} USDC on ${config.name}...`));
+      statusLog(chalk.dim(`Minting ${opts.amount} USDC on ${config.name}...`));
       const tx = await usdc.mint(wallet.address, amount);
-      console.log(`Tx: ${chalk.dim(tx.hash)}`);
+      humanLog(`Tx: ${chalk.dim(tx.hash)}`);
       await tx.wait();
 
       const balance = await usdc.balanceOf(wallet.address);
-      console.log(chalk.green(`Minted ${opts.amount} USDC. Balance: ${formatUsdc(balance)} USDC`));
+      humanLog(chalk.green(`Minted ${opts.amount} USDC. Balance: ${formatUsdc(balance)} USDC`));
+      outputSuccess({
+        amount: opts.amount,
+        txHash: tx.hash,
+        balance: { raw: balance.toString(), formatted: formatUsdc(balance) },
+      }, { chain: config.name, chainId });
     } catch (err: any) {
-      handleError(err);
+      handleErrorJson(err);
     }
   });

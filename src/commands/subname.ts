@@ -4,7 +4,8 @@ import chalk from "chalk";
 import { getChainConfig } from "../config.js";
 import { getWallet } from "../provider.js";
 import { REGISTRY_ABI } from "../abi.js";
-import { resolveName, indexerFetch, isDryRun, proposeTx, handleError, validateAddress, validateLabel, parsePositiveInt, verifyOwnership } from "../utils.js";
+import { resolveName, indexerFetch, isDryRun, proposeTx, validateAddress, validateLabel, parsePositiveInt, verifyOwnership } from "../utils.js";
+import { outputSuccess, handleErrorJson, humanLog, statusLog } from "../output.js";
 
 export const createSubnameCommand = new Command("create-subname")
   .description("Create a subname under an agent")
@@ -39,16 +40,23 @@ export const createSubnameCommand = new Command("create-subname")
       const registry = new ethers.Contract(config.ID_REGISTRY, REGISTRY_ABI, wallet);
       await verifyOwnership(registry, parent.node, wallet, parent.domain);
 
-      console.log(chalk.dim(`Creating ${fullDomain}...`));
+      statusLog(chalk.dim(`Creating ${fullDomain}...`));
       const tx = await registry.setSubnodeOwner(parent.node, sublabel, owner);
-      console.log(`Tx: ${chalk.dim(tx.hash)}`);
+      humanLog(`Tx: ${chalk.dim(tx.hash)}`);
       await tx.wait();
-      console.log(chalk.green(`Created ${chalk.bold(fullDomain)}`));
+      humanLog(chalk.green(`Created ${chalk.bold(fullDomain)}`));
       if (owner !== wallet.address) {
-        console.log(chalk.dim(`Owner: ${owner}`));
+        humanLog(chalk.dim(`Owner: ${owner}`));
       }
+      outputSuccess({
+        domain: fullDomain,
+        sublabel,
+        parent: parent.domain,
+        owner,
+        txHash: tx.hash,
+      }, { chain: config.name, chainId: parent.chainId });
     } catch (err: any) {
-      handleError(err);
+      handleErrorJson(err);
     }
   });
 
@@ -66,23 +74,29 @@ export const listSubnamesCommand = new Command("list-subnames")
 
       const res = await indexerFetch(`/api/domains?parent=${resolved.path}&chain=${resolved.chainId}&limit=${limit}&offset=${offset}`);
       if (!res.ok) {
-        console.log(chalk.dim("Could not fetch subnames from indexer."));
+        humanLog(chalk.dim("Could not fetch subnames from indexer."));
         return;
       }
 
       const data = await res.json();
       const domains = data.domains || data || [];
       if (!domains.length) {
-        console.log(chalk.dim(`No subnames found under ${resolved.domain}`));
+        humanLog(chalk.dim(`No subnames found under ${resolved.domain}`));
+        outputSuccess({ domain: resolved.domain, subnames: [] }, { chainId: resolved.chainId });
         return;
       }
 
-      console.log(chalk.bold(`Subnames of ${resolved.domain}\n`));
+      humanLog(chalk.bold(`Subnames of ${resolved.domain}\n`));
       for (const d of domains) {
-        console.log(`  ${d.label || d.name}  ${chalk.dim(d.owner || "")}`);
+        humanLog(`  ${d.label || d.name}  ${chalk.dim(d.owner || "")}`);
       }
-      console.log(chalk.dim(`\n${domains.length} subnames shown`));
+      humanLog(chalk.dim(`\n${domains.length} subnames shown`));
+      outputSuccess({
+        domain: resolved.domain,
+        subnames: domains.map((d: any) => ({ label: d.label || d.name, owner: d.owner || null })),
+        count: domains.length,
+      }, { chainId: resolved.chainId });
     } catch (err: any) {
-      handleError(err);
+      handleErrorJson(err);
     }
   });

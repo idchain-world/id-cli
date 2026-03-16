@@ -4,7 +4,8 @@ import chalk from "chalk";
 import { getChainConfig } from "../config.js";
 import { getWallet } from "../provider.js";
 import { REGISTRY_ABI } from "../abi.js";
-import { resolveName, isDryRun, proposeTx, handleError, validateAddress, verifyOwnership } from "../utils.js";
+import { resolveName, isDryRun, proposeTx, validateAddress, verifyOwnership } from "../utils.js";
+import { outputSuccess, handleErrorJson, humanLog, statusLog } from "../output.js";
 
 export const transferCommand = new Command("transfer")
   .description("Transfer ownership of an agent name")
@@ -35,12 +36,17 @@ export const transferCommand = new Command("transfer")
       const registry = new ethers.Contract(config.ID_REGISTRY, REGISTRY_ABI, wallet);
       await verifyOwnership(registry, resolved.node, wallet, resolved.domain);
 
-      console.log(chalk.dim(`Transferring ${resolved.domain} to ${toAddress}`));
+      statusLog(chalk.dim(`Transferring ${resolved.domain} to ${toAddress}`));
       const tx = await registry.setOwner(resolved.node, toAddress);
-      console.log(`Tx: ${chalk.dim(tx.hash)}`);
+      humanLog(`Tx: ${chalk.dim(tx.hash)}`);
       await tx.wait();
-      console.log(chalk.green(`Transferred ${chalk.bold(resolved.domain)} to ${toAddress}`));
+      humanLog(chalk.green(`Transferred ${chalk.bold(resolved.domain)} to ${toAddress}`));
+      outputSuccess({
+        domain: resolved.domain,
+        to: toAddress,
+        txHash: tx.hash,
+      }, { chain: config.name, chainId: resolved.chainId });
     } catch (err: any) {
-      handleError(err);
+      handleErrorJson(err);
     }
   });

@@ -16,7 +16,8 @@ program
   .name("id-cli")
   .description("CLI for ID Chain agent name registration and management")
   .version("0.2.0")
-  .option("--dry-run", "Show transaction proposal without executing");
+  .option("--dry-run", "Show transaction proposal without executing")
+  .option("--output <format>", "Output format: human or json (default: auto-detect by TTY)");
 
 program.addCommand(registerCommand);
 program.addCommand(transferCommand);

@@ -4,7 +4,8 @@ import chalk from "chalk";
 import { resolveChain, getChainConfig } from "../config.js";
 import { getWallet } from "../provider.js";
 import { IDENTITY_REGISTRY_ABI, REGISTRY_ABI } from "../abi.js";
-import { resolveName, isDryRun, proposeTx, handleError } from "../utils.js";
+import { resolveName, isDryRun, proposeTx } from "../utils.js";
+import { outputSuccess, handleErrorJson, humanLog, statusLog } from "../output.js";
 
 /**
  * ERC-7930 interoperable address encoding for ENSIP-25 text record keys.
@@ -89,18 +90,18 @@ export const registerAgentCommand = new Command("register-agent")
         });
         if (opts.link) {
           const nameConfig = getChainConfig(nameChainId);
-          console.log(chalk.dim("\n  ENSIP-25 linking (second transaction):"));
-          console.log(chalk.dim(`    Contract: IDRegistry (${nameConfig.ID_REGISTRY})`));
-          console.log(chalk.dim(`    Function: setText(node, key, "1")`));
-          console.log(chalk.dim(`    Key format: agent-registration[erc7930][agentId]`));
-          console.log(chalk.dim(`    (Agent ID determined after first tx)`));
+          humanLog(chalk.dim("\n  ENSIP-25 linking (second transaction):"));
+          humanLog(chalk.dim(`    Contract: IDRegistry (${nameConfig.ID_REGISTRY})`));
+          humanLog(chalk.dim(`    Function: setText(node, key, "1")`));
+          humanLog(chalk.dim(`    Key format: agent-registration[erc7930][agentId]`));
+          humanLog(chalk.dim(`    (Agent ID determined after first tx)`));
         }
         return;
       }
 
-      console.log(chalk.dim(`Registering on ERC-8004 IdentityRegistry (${registryConfig.name})...`));
-      console.log(chalk.dim(`Agent URI: ${resolved.domain}`));
-      console.log(chalk.dim(`Services: ${services.map((s) => s.name).join(", ")}`));
+      statusLog(chalk.dim(`Registering on ERC-8004 IdentityRegistry (${registryConfig.name})...`));
+      statusLog(chalk.dim(`Agent URI: ${resolved.domain}`));
+      statusLog(chalk.dim(`Services: ${services.map((s) => s.name).join(", ")}`));
 
       const registry = new ethers.Contract(
         registryConfig.IDENTITY_REGISTRY_8004,
@@ -109,7 +110,7 @@ export const registerAgentCommand = new Command("register-agent")
       );
 
       const tx = await registry.register(agentURI);
-      console.log(`Tx: ${chalk.dim(tx.hash)}`);
+      humanLog(`Tx: ${chalk.dim(tx.hash)}`);
       const receipt = await tx.wait();
 
       // Extract agentId from Transfer event (ERC-721 mint: from = address(0))
@@ -122,13 +123,14 @@ export const registerAgentCommand = new Command("register-agent")
       }
 
       if (agentId) {
-        console.log(chalk.green(`Registered! Agent ID: ${chalk.bold(agentId)}`));
-        console.log(chalk.dim(`View: https://www.8004scan.io/agents/${registryConfig.shortName}/${agentId}`));
+        humanLog(chalk.green(`Registered! Agent ID: ${chalk.bold(agentId)}`));
+        humanLog(chalk.dim(`View: https://www.8004scan.io/agents/${registryConfig.shortName}/${agentId}`));
       } else {
-        console.log(chalk.green("Registered! (could not extract agent ID from logs)"));
+        humanLog(chalk.green("Registered! (could not extract agent ID from logs)"));
       }
 
       // Link via ENSIP-25 if --link flag is set
+      let linked = false;
       if (opts.link && agentId) {
         const nameConfig = getChainConfig(nameChainId);
         const ensip25Key = buildEnsip25Key(registryChainId, registryConfig.IDENTITY_REGISTRY_8004, agentId);
@@ -136,20 +138,30 @@ export const registerAgentCommand = new Command("register-agent")
         const nameWallet = nameChainId !== registryChainId ? getWallet(nameChainId) : wallet;
         const nameRegistry = new ethers.Contract(nameConfig.ID_REGISTRY, REGISTRY_ABI, nameWallet);
 
-        console.log(chalk.dim(`\nSetting ENSIP-25 record on ${nameConfig.name}...`));
-        console.log(chalk.dim(`Key: ${ensip25Key}`));
+        statusLog(chalk.dim(`\nSetting ENSIP-25 record on ${nameConfig.name}...`));
+        statusLog(chalk.dim(`Key: ${ensip25Key}`));
         const linkTx = await nameRegistry.setText(resolved.node, ensip25Key, "1");
-        console.log(`Tx: ${chalk.dim(linkTx.hash)}`);
+        humanLog(`Tx: ${chalk.dim(linkTx.hash)}`);
         await linkTx.wait();
-        console.log(chalk.green("Linked agent to name via ENSIP-25."));
+        humanLog(chalk.green("Linked agent to name via ENSIP-25."));
+        linked = true;
       } else if (opts.link && !agentId) {
-        console.log(chalk.yellow("Cannot link: agent ID not found. Use `id-cli link-agent` manually."));
+        humanLog(chalk.yellow("Cannot link: agent ID not found. Use `id-cli link-agent` manually."));
       } else if (agentId) {
-        console.log(chalk.dim(`\nTo link to your name, run:`));
-        console.log(`  id-cli link-agent ${resolved.path} ${agentId} --chain ${opts.chain}`);
+        humanLog(chalk.dim(`\nTo link to your name, run:`));
+        humanLog(`  id-cli link-agent ${resolved.path} ${agentId} --chain ${opts.chain}`);
       }
+
+      outputSuccess({
+        domain: resolved.domain,
+        agentId,
+        txHash: tx.hash,
+        gasUsed: receipt.gasUsed.toString(),
+        services: services.map((s) => s.name),
+        linked,
+      }, { chain: registryConfig.name, chainId: registryChainId });
     } catch (err: any) {
-      handleError(err);
+      handleErrorJson(err);
     }
   });
 
@@ -188,15 +200,21 @@ export const linkAgentCommand = new Command("link-agent")
       }
 
       const wallet = getWallet(nameChainId);
-      console.log(chalk.dim(`Linking agent ${agentId} to ${resolved.domain}...`));
-      console.log(chalk.dim(`Key: ${ensip25Key}`));
+      statusLog(chalk.dim(`Linking agent ${agentId} to ${resolved.domain}...`));
+      statusLog(chalk.dim(`Key: ${ensip25Key}`));
 
       const registry = new ethers.Contract(nameConfig.ID_REGISTRY, REGISTRY_ABI, wallet);
       const tx = await registry.setText(resolved.node, ensip25Key, "1");
-      console.log(`Tx: ${chalk.dim(tx.hash)}`);
+      humanLog(`Tx: ${chalk.dim(tx.hash)}`);
       await tx.wait();
-      console.log(chalk.green(`Linked agent ${chalk.bold(agentId)} to ${chalk.bold(resolved.domain)} via ENSIP-25.`));
+      humanLog(chalk.green(`Linked agent ${chalk.bold(agentId)} to ${chalk.bold(resolved.domain)} via ENSIP-25.`));
+      outputSuccess({
+        domain: resolved.domain,
+        agentId,
+        ensip25Key,
+        txHash: tx.hash,
+      }, { chain: nameConfig.name, chainId: nameChainId });
     } catch (err: any) {
-      handleError(err);
+      handleErrorJson(err);
     }
   });

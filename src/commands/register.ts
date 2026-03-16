@@ -4,7 +4,8 @@ import chalk from "chalk";
 import { resolveChain, getChainConfig } from "../config.js";
 import { getWallet } from "../provider.js";
 import { REGISTRAR_ABI, USDC_ABI } from "../abi.js";
-import { formatDomainName, formatUsdc, signUsdcPermit, isDryRun, proposeTx, CliError, ExitCode, handleError, validateAddress, validateLabel } from "../utils.js";
+import { formatDomainName, formatUsdc, signUsdcPermit, isDryRun, proposeTx, CliError, ExitCode, validateAddress, validateLabel } from "../utils.js";
+import { outputSuccess, handleErrorJson, humanLog, statusLog } from "../output.js";
 
 export const registerCommand = new Command("register")
   .description("Register a new agent name (permanent, one-time fee)")
@@ -20,8 +21,8 @@ export const registerCommand = new Command("register")
       const config = getChainConfig(chainId);
       const wallet = getWallet(chainId);
 
-      console.log(chalk.dim(`Chain: ${config.name} (${chainId})`));
-      console.log(chalk.dim(`Wallet: ${wallet.address}`));
+      statusLog(chalk.dim(`Chain: ${config.name} (${chainId})`));
+      statusLog(chalk.dim(`Wallet: ${wallet.address}`));
 
       const registrar = new ethers.Contract(config.ID_AGENT_REGISTRAR, REGISTRAR_ABI, wallet);
       const usdc = new ethers.Contract(config.MOCK_USDC, USDC_ABI, wallet);
@@ -32,12 +33,12 @@ export const registerCommand = new Command("register")
         registrar.price(),
       ]);
 
-      console.log(`Next label: ${chalk.bold(nextLabel)}`);
+      humanLog(`Next label: ${chalk.bold(nextLabel)}`);
       const domainName = opts.sublabel
         ? `${opts.sublabel}.${nextLabel}${config.suffix}`
         : formatDomainName(nextLabel, chainId);
-      console.log(`Domain: ${chalk.bold(domainName)}`);
-      console.log(`Price: ${chalk.bold(formatUsdc(price))} USDC (one-time, permanent)`);
+      humanLog(`Domain: ${chalk.bold(domainName)}`);
+      humanLog(`Price: ${chalk.bold(formatUsdc(price))} USDC (one-time, permanent)`);
 
       // Check USDC balance
       const balance = await usdc.balanceOf(wallet.address);
@@ -100,17 +101,17 @@ export const registerCommand = new Command("register")
       // Try EIP-2612 permit, fall back to approve if not supported
       let permit = { deadline: 0n, v: 0, r: ethers.ZeroHash, s: ethers.ZeroHash };
       try {
-        console.log(chalk.dim("Signing USDC permit..."));
+        statusLog(chalk.dim("Signing USDC permit..."));
         permit = await signUsdcPermit(wallet, usdc, config.ID_AGENT_REGISTRAR, price, chainId);
       } catch (permitErr: any) {
-        console.log(chalk.dim(`Permit not supported (${permitErr.message?.slice(0, 60)}), using approve...`));
+        statusLog(chalk.dim(`Permit not supported (${permitErr.message?.slice(0, 60)}), using approve...`));
         const approveTx = await usdc.approve(config.ID_AGENT_REGISTRAR, price);
         await approveTx.wait();
-        console.log(chalk.dim("USDC approved."));
+        statusLog(chalk.dim("USDC approved."));
       }
 
       // Register
-      console.log(chalk.dim("Submitting registration..."));
+      statusLog(chalk.dim("Submitting registration..."));
       let tx;
       if (opts.sublabel) {
         tx = await registrar.registerWithParent(
@@ -126,11 +127,18 @@ export const registerCommand = new Command("register")
         );
       }
 
-      console.log(`Tx: ${chalk.dim(tx.hash)}`);
       const receipt = await tx.wait();
-      console.log(chalk.green(`Registered ${chalk.bold(domainName)} (permanent)`));
-      console.log(chalk.dim(`Gas used: ${receipt.gasUsed.toString()}`));
+      humanLog(`Tx: ${chalk.dim(tx.hash)}`);
+      humanLog(chalk.green(`Registered ${chalk.bold(domainName)} (permanent)`));
+      humanLog(chalk.dim(`Gas used: ${receipt.gasUsed.toString()}`));
+      outputSuccess({
+        domain: domainName,
+        label: nextLabel,
+        txHash: tx.hash,
+        gasUsed: receipt.gasUsed.toString(),
+        price: { raw: price.toString(), formatted: formatUsdc(price) },
+      }, { chain: config.name, chainId });
     } catch (err: any) {
-      handleError(err);
+      handleErrorJson(err);
     }
   });

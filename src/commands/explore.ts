@@ -1,7 +1,8 @@
 import { Command } from "commander";
 import chalk from "chalk";
 import { resolveChain, getChainConfig, CHAIN_CONFIGS } from "../config.js";
-import { indexerFetch, CliError, ExitCode, handleError, parsePositiveInt } from "../utils.js";
+import { indexerFetch, CliError, ExitCode, parsePositiveInt } from "../utils.js";
+import { outputSuccess, handleErrorJson, humanLog } from "../output.js";
 
 // Root/parent nodes that aren't agent names
 const HIDDEN_NAMES = new Set([
@@ -69,22 +70,27 @@ export const exploreCommand = new Command("explore")
       const displayed = filtered.slice(0, limit);
 
       if (!displayed.length) {
-        console.log(chalk.dim("No names found."));
+        humanLog(chalk.dim("No names found."));
+        outputSuccess({ names: [], count: 0 });
         return;
       }
 
       const heading = filterByChain && config
         ? `Agent names on ${config.name}`
         : "Agent names";
-      console.log(chalk.bold(`${heading}\n`));
+      humanLog(chalk.bold(`${heading}\n`));
       for (const d of displayed) {
         const name = d.name || d.label;
         const owner = d.owner ? chalk.dim(` ${d.owner.slice(0, 6)}...${d.owner.slice(-4)}`) : "";
-        console.log(`  ${name}${owner}`);
+        humanLog(`  ${name}${owner}`);
       }
 
-      console.log(chalk.dim(`\n${displayed.length} names shown`));
+      humanLog(chalk.dim(`\n${displayed.length} names shown`));
+      outputSuccess({
+        names: displayed.map((d: any) => ({ name: d.name || d.label, owner: d.owner || null })),
+        count: displayed.length,
+      }, filterByChain && config ? { chain: config.name, chainId } : undefined);
     } catch (err: any) {
-      handleError(err);
+      handleErrorJson(err);
     }
   });
