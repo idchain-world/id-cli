@@ -102,8 +102,8 @@ export const registerCommand = new Command("register")
       try {
         console.log(chalk.dim("Signing USDC permit..."));
         permit = await signUsdcPermit(wallet, usdc, config.ID_AGENT_REGISTRAR, price, chainId);
-      } catch {
-        console.log(chalk.dim("Permit not supported, using approve..."));
+      } catch (permitErr: any) {
+        console.log(chalk.dim(`Permit not supported (${permitErr.message?.slice(0, 60)}), using approve...`));
         const approveTx = await usdc.approve(config.ID_AGENT_REGISTRAR, price);
         await approveTx.wait();
         console.log(chalk.dim("USDC approved."));

@@ -4,7 +4,7 @@ import chalk from "chalk";
 import { getChainConfig } from "../config.js";
 import { getWallet } from "../provider.js";
 import { REGISTRY_ABI } from "../abi.js";
-import { resolveName, indexerFetch, isDryRun, proposeTx, handleError, validateAddress, validateLabel } from "../utils.js";
+import { resolveName, indexerFetch, isDryRun, proposeTx, handleError, validateAddress, validateLabel, parsePositiveInt } from "../utils.js";
 
 export const createSubnameCommand = new Command("create-subname")
   .description("Create a subname under an agent")
@@ -55,11 +55,15 @@ export const listSubnamesCommand = new Command("list-subnames")
   .description("List subnames under an agent")
   .argument("<name>", "Parent name (e.g., agent-0, agent-0.base.xid.eth)")
   .option("-c, --chain <chain>", "Chain", "base")
+  .option("-l, --limit <n>", "Number of results", "50")
+  .option("-o, --offset <n>", "Offset for pagination", "0")
   .action(async (name, opts) => {
     try {
       const resolved = resolveName(name, opts.chain);
+      const limit = parsePositiveInt(opts.limit, "--limit");
+      const offset = parsePositiveInt(opts.offset, "--offset");
 
-      const res = await indexerFetch(`/api/domains?parent=${resolved.path}&chain=${resolved.chainId}`);
+      const res = await indexerFetch(`/api/domains?parent=${resolved.path}&chain=${resolved.chainId}&limit=${limit}&offset=${offset}`);
       if (!res.ok) {
         console.log(chalk.dim("Could not fetch subnames from indexer."));
         return;
@@ -76,6 +80,7 @@ export const listSubnamesCommand = new Command("list-subnames")
       for (const d of domains) {
         console.log(`  ${d.label || d.name}  ${chalk.dim(d.owner || "")}`);
       }
+      console.log(chalk.dim(`\n${domains.length} subnames shown`));
     } catch (err: any) {
       handleError(err);
     }
