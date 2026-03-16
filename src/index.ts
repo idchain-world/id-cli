@@ -9,6 +9,7 @@ import { createSubnameCommand, listSubnamesCommand } from "./commands/subname.js
 import { exploreCommand } from "./commands/explore.js";
 import { mintCommand } from "./commands/mint.js";
 import { registerAgentCommand, linkAgentCommand } from "./commands/agent.js";
+import { schemaCommand } from "./commands/schema.js";
 
 const program = new Command();
 
@@ -32,5 +33,6 @@ program.addCommand(registerAgentCommand);
 program.addCommand(linkAgentCommand);
 program.addCommand(exploreCommand);
 program.addCommand(mintCommand);
+program.addCommand(schemaCommand);
 
 program.parse();
