@@ -4,7 +4,7 @@ import chalk from "chalk";
 import { getChainConfig } from "../config.js";
 import { getWallet } from "../provider.js";
 import { REGISTRY_ABI } from "../abi.js";
-import { resolveName, isDryRun, proposeTx, CliError, ExitCode, handleError, validateAddress } from "../utils.js";
+import { resolveName, isDryRun, proposeTx, handleError, validateAddress, verifyOwnership } from "../utils.js";
 
 export const transferCommand = new Command("transfer")
   .description("Transfer ownership of an agent name")
@@ -33,12 +33,7 @@ export const transferCommand = new Command("transfer")
       }
 
       const registry = new ethers.Contract(config.ID_REGISTRY, REGISTRY_ABI, wallet);
-
-      // Verify ownership
-      const currentOwner = await registry.owner(resolved.node);
-      if (currentOwner.toLowerCase() !== wallet.address.toLowerCase()) {
-        throw new CliError(`You don't own ${resolved.domain}. Owner: ${currentOwner}`, ExitCode.NOT_FOUND);
-      }
+      await verifyOwnership(registry, resolved.node, wallet, resolved.domain);
 
       console.log(chalk.dim(`Transferring ${resolved.domain} to ${toAddress}`));
       const tx = await registry.setOwner(resolved.node, toAddress);

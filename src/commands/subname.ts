@@ -4,7 +4,7 @@ import chalk from "chalk";
 import { getChainConfig } from "../config.js";
 import { getWallet } from "../provider.js";
 import { REGISTRY_ABI } from "../abi.js";
-import { resolveName, indexerFetch, isDryRun, proposeTx, handleError, validateAddress, validateLabel, parsePositiveInt } from "../utils.js";
+import { resolveName, indexerFetch, isDryRun, proposeTx, handleError, validateAddress, validateLabel, parsePositiveInt, verifyOwnership } from "../utils.js";
 
 export const createSubnameCommand = new Command("create-subname")
   .description("Create a subname under an agent")
@@ -37,6 +37,7 @@ export const createSubnameCommand = new Command("create-subname")
       }
 
       const registry = new ethers.Contract(config.ID_REGISTRY, REGISTRY_ABI, wallet);
+      await verifyOwnership(registry, parent.node, wallet, parent.domain);
 
       console.log(chalk.dim(`Creating ${fullDomain}...`));
       const tx = await registry.setSubnodeOwner(parent.node, sublabel, owner);

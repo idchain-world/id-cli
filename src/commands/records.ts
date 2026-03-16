@@ -4,7 +4,7 @@ import chalk from "chalk";
 import { getChainConfig } from "../config.js";
 import { getWallet, getProvider } from "../provider.js";
 import { REGISTRY_ABI } from "../abi.js";
-import { resolveName, indexerFetch, isDryRun, proposeTx, handleError, parsePositiveInt } from "../utils.js";
+import { resolveName, indexerFetch, isDryRun, proposeTx, handleError, parsePositiveInt, verifyOwnership } from "../utils.js";
 
 export const recordsCommand = new Command("records")
   .description("Show all records for a name")
@@ -87,6 +87,7 @@ export const setTextCommand = new Command("set-text")
 
       const wallet = getWallet(resolved.chainId);
       const registry = new ethers.Contract(config.ID_REGISTRY, REGISTRY_ABI, wallet);
+      await verifyOwnership(registry, resolved.node, wallet, resolved.domain);
 
       console.log(chalk.dim(`Setting ${key} on ${resolved.domain}...`));
       const tx = await registry.setText(resolved.node, key, value);
@@ -139,6 +140,7 @@ export const setAddrCommand = new Command("set-addr")
 
       const wallet = getWallet(resolved.chainId);
       const registry = new ethers.Contract(config.ID_REGISTRY, REGISTRY_ABI, wallet);
+      await verifyOwnership(registry, resolved.node, wallet, resolved.domain);
 
       if (coinType === 60) {
         console.log(chalk.dim(`Setting ETH address on ${resolved.domain}...`));
@@ -185,6 +187,7 @@ export const setContenthashCommand = new Command("set-contenthash")
 
       const wallet = getWallet(resolved.chainId);
       const registry = new ethers.Contract(config.ID_REGISTRY, REGISTRY_ABI, wallet);
+      await verifyOwnership(registry, resolved.node, wallet, resolved.domain);
 
       console.log(chalk.dim(`Setting content hash on ${resolved.domain}...`));
       const tx = await registry.setContenthash(resolved.node, hash);

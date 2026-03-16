@@ -55,6 +55,21 @@ export function parsePositiveInt(value: string, flagName: string): number {
   return n;
 }
 
+export async function verifyOwnership(
+  registry: ethers.Contract,
+  node: string,
+  wallet: ethers.Wallet,
+  domain: string,
+): Promise<void> {
+  const currentOwner = await registry.owner(node);
+  if (currentOwner === ethers.ZeroAddress) {
+    throw new CliError(`${domain} is not registered.`, ExitCode.NOT_FOUND);
+  }
+  if (currentOwner.toLowerCase() !== wallet.address.toLowerCase()) {
+    throw new CliError(`You don't own ${domain}. Owner: ${currentOwner}`, ExitCode.NOT_FOUND);
+  }
+}
+
 export function labelhash(label: string): string {
   return ethers.keccak256(ethers.toUtf8Bytes(label));
 }
