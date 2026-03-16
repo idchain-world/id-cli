@@ -4,7 +4,7 @@ import chalk from "chalk";
 import { getChainConfig } from "../config.js";
 import { getWallet } from "../provider.js";
 import { REGISTRY_ABI } from "../abi.js";
-import { resolveName, indexerFetch, isDryRun, proposeTx } from "../utils.js";
+import { resolveName, indexerFetch, isDryRun, proposeTx, handleError } from "../utils.js";
 
 export const createSubnameCommand = new Command("create-subname")
   .description("Create a subname under an agent")
@@ -46,8 +46,7 @@ export const createSubnameCommand = new Command("create-subname")
         console.log(chalk.dim(`Owner: ${owner}`));
       }
     } catch (err: any) {
-      console.error(chalk.red(err.message));
-      process.exit(1);
+      handleError(err);
     }
   });
 
@@ -77,7 +76,6 @@ export const listSubnamesCommand = new Command("list-subnames")
         console.log(`  ${d.label || d.name}  ${chalk.dim(d.owner || "")}`);
       }
     } catch (err: any) {
-      console.error(chalk.red(err.message));
-      process.exit(1);
+      handleError(err);
     }
   });

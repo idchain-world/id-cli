@@ -2,6 +2,29 @@ import { ethers } from "ethers";
 import chalk from "chalk";
 import { getChainConfig, resolveChain, CHAIN_CONFIGS, INDEXER_BASE_URL, type ChainConfig } from "./config.js";
 
+// ── Exit codes ───────────────────────────────────────────────────────────────
+
+export enum ExitCode {
+  SUCCESS = 0,
+  GENERAL_ERROR = 1,
+  INPUT_ERROR = 2,
+  AUTH_ERROR = 3,
+  NOT_FOUND = 4,
+  INSUFFICIENT_FUNDS = 5,
+}
+
+export class CliError extends Error {
+  constructor(message: string, public exitCode: ExitCode = ExitCode.GENERAL_ERROR) {
+    super(message);
+  }
+}
+
+export function handleError(err: any): never {
+  const exitCode = err instanceof CliError ? err.exitCode : ExitCode.GENERAL_ERROR;
+  console.error(chalk.red(err.message || String(err)));
+  process.exit(exitCode);
+}
+
 export function labelhash(label: string): string {
   return ethers.keccak256(ethers.toUtf8Bytes(label));
 }

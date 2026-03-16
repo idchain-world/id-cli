@@ -4,7 +4,7 @@ import chalk from "chalk";
 import { resolveChain, getChainConfig } from "../config.js";
 import { getWallet } from "../provider.js";
 import { REGISTRAR_ABI, USDC_ABI } from "../abi.js";
-import { formatDomainName, formatUsdc, signUsdcPermit, isDryRun, proposeTx } from "../utils.js";
+import { formatDomainName, formatUsdc, signUsdcPermit, isDryRun, proposeTx, CliError, ExitCode, handleError } from "../utils.js";
 
 export const registerCommand = new Command("register")
   .description("Register a new agent name (permanent, one-time fee)")
@@ -42,8 +42,7 @@ export const registerCommand = new Command("register")
       // Check USDC balance
       const balance = await usdc.balanceOf(wallet.address);
       if (balance < price) {
-        console.error(chalk.red(`Insufficient USDC balance: ${formatUsdc(balance)} < ${formatUsdc(price)}`));
-        process.exit(1);
+        throw new CliError(`Insufficient USDC balance: ${formatUsdc(balance)} < ${formatUsdc(price)}`, ExitCode.INSUFFICIENT_FUNDS);
       }
 
       // Parse text records
@@ -52,7 +51,7 @@ export const registerCommand = new Command("register")
       if (opts.text) {
         for (const pair of opts.text) {
           const eq = pair.indexOf("=");
-          if (eq === -1) throw new Error(`Invalid text record: ${pair}. Use key=value format.`);
+          if (eq === -1) throw new CliError(`Invalid text record: ${pair}. Use key=value format.`, ExitCode.INPUT_ERROR);
           keys.push(pair.slice(0, eq));
           values.push(pair.slice(eq + 1));
         }
@@ -129,7 +128,6 @@ export const registerCommand = new Command("register")
       console.log(chalk.green(`Registered ${chalk.bold(domainName)} (permanent)`));
       console.log(chalk.dim(`Gas used: ${receipt.gasUsed.toString()}`));
     } catch (err: any) {
-      console.error(chalk.red(err.message));
-      process.exit(1);
+      handleError(err);
     }
   });

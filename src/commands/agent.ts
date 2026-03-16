@@ -4,7 +4,7 @@ import chalk from "chalk";
 import { resolveChain, getChainConfig } from "../config.js";
 import { getWallet } from "../provider.js";
 import { IDENTITY_REGISTRY_ABI, REGISTRY_ABI } from "../abi.js";
-import { resolveName, isDryRun, proposeTx } from "../utils.js";
+import { resolveName, isDryRun, proposeTx, handleError } from "../utils.js";
 
 /**
  * ERC-7930 interoperable address encoding for ENSIP-25 text record keys.
@@ -149,8 +149,7 @@ export const registerAgentCommand = new Command("register-agent")
         console.log(`  id-cli link-agent ${resolved.path} ${agentId} --chain ${opts.chain}`);
       }
     } catch (err: any) {
-      console.error(chalk.red(err.message));
-      process.exit(1);
+      handleError(err);
     }
   });
 
@@ -198,7 +197,6 @@ export const linkAgentCommand = new Command("link-agent")
       await tx.wait();
       console.log(chalk.green(`Linked agent ${chalk.bold(agentId)} to ${chalk.bold(resolved.domain)} via ENSIP-25.`));
     } catch (err: any) {
-      console.error(chalk.red(err.message));
-      process.exit(1);
+      handleError(err);
     }
   });

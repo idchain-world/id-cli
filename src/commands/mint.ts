@@ -4,7 +4,7 @@ import chalk from "chalk";
 import { resolveChain, getChainConfig } from "../config.js";
 import { getWallet } from "../provider.js";
 import { USDC_ABI } from "../abi.js";
-import { formatUsdc, isDryRun, proposeTx } from "../utils.js";
+import { formatUsdc, isDryRun, proposeTx, handleError } from "../utils.js";
 
 export const mintCommand = new Command("mint-usdc")
   .description("Mint test USDC (testnet only)")
@@ -42,7 +42,6 @@ export const mintCommand = new Command("mint-usdc")
       const balance = await usdc.balanceOf(wallet.address);
       console.log(chalk.green(`Minted ${opts.amount} USDC. Balance: ${formatUsdc(balance)} USDC`));
     } catch (err: any) {
-      console.error(chalk.red(err.message));
-      process.exit(1);
+      handleError(err);
     }
   });

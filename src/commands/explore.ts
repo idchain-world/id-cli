@@ -1,7 +1,7 @@
 import { Command } from "commander";
 import chalk from "chalk";
 import { resolveChain, getChainConfig, CHAIN_CONFIGS } from "../config.js";
-import { indexerFetch } from "../utils.js";
+import { indexerFetch, CliError, ExitCode, handleError } from "../utils.js";
 
 // Root/parent nodes that aren't agent names
 const HIDDEN_NAMES = new Set([
@@ -42,8 +42,7 @@ export const exploreCommand = new Command("explore")
 
       const res = await indexerFetch(path);
       if (!res.ok) {
-        console.error(chalk.red(`Indexer error: ${res.status}. Set INDEXER_API_KEY env var for protected endpoints.`));
-        process.exit(1);
+        throw new CliError(`Indexer error: ${res.status}. Set INDEXER_API_KEY env var for protected endpoints.`, ExitCode.AUTH_ERROR);
       }
 
       const data = await res.json();
@@ -86,7 +85,6 @@ export const exploreCommand = new Command("explore")
 
       console.log(chalk.dim(`\n${displayed.length} names shown`));
     } catch (err: any) {
-      console.error(chalk.red(err.message));
-      process.exit(1);
+      handleError(err);
     }
   });

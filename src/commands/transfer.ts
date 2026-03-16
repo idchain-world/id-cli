@@ -4,7 +4,7 @@ import chalk from "chalk";
 import { getChainConfig } from "../config.js";
 import { getWallet } from "../provider.js";
 import { REGISTRY_ABI } from "../abi.js";
-import { resolveName, isDryRun, proposeTx } from "../utils.js";
+import { resolveName, isDryRun, proposeTx, CliError, ExitCode, handleError } from "../utils.js";
 
 export const transferCommand = new Command("transfer")
   .description("Transfer ownership of an agent name")
@@ -36,8 +36,7 @@ export const transferCommand = new Command("transfer")
       // Verify ownership
       const currentOwner = await registry.owner(resolved.node);
       if (currentOwner.toLowerCase() !== wallet.address.toLowerCase()) {
-        console.error(chalk.red(`You don't own ${resolved.domain}. Owner: ${currentOwner}`));
-        process.exit(1);
+        throw new CliError(`You don't own ${resolved.domain}. Owner: ${currentOwner}`, ExitCode.NOT_FOUND);
       }
 
       console.log(chalk.dim(`Transferring ${resolved.domain} to ${opts.to}`));
@@ -46,7 +45,6 @@ export const transferCommand = new Command("transfer")
       await tx.wait();
       console.log(chalk.green(`Transferred ${chalk.bold(resolved.domain)} to ${opts.to}`));
     } catch (err: any) {
-      console.error(chalk.red(err.message));
-      process.exit(1);
+      handleError(err);
     }
   });

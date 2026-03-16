@@ -4,7 +4,7 @@ import chalk from "chalk";
 import { getChainConfig } from "../config.js";
 import { getProvider } from "../provider.js";
 import { REGISTRY_ABI } from "../abi.js";
-import { resolveName, indexerFetch } from "../utils.js";
+import { resolveName, indexerFetch, handleError } from "../utils.js";
 
 export const infoCommand = new Command("info")
   .description("Show details for an agent name")
@@ -65,7 +65,6 @@ export const infoCommand = new Command("info")
         // Skip if indexer unavailable
       }
     } catch (err: any) {
-      console.error(chalk.red(err.message));
-      process.exit(1);
+      handleError(err);
     }
   });

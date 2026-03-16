@@ -4,7 +4,7 @@ import chalk from "chalk";
 import { getChainConfig } from "../config.js";
 import { getWallet, getProvider } from "../provider.js";
 import { REGISTRY_ABI } from "../abi.js";
-import { resolveName, indexerFetch, isDryRun, proposeTx } from "../utils.js";
+import { resolveName, indexerFetch, isDryRun, proposeTx, handleError } from "../utils.js";
 
 export const recordsCommand = new Command("records")
   .description("Show all records for a name")
@@ -56,8 +56,7 @@ export const recordsCommand = new Command("records")
         console.log(chalk.dim(`\nContent hash: ${records.contenthash}`));
       }
     } catch (err: any) {
-      console.error(chalk.red(err.message));
-      process.exit(1);
+      handleError(err);
     }
   });
 
@@ -95,8 +94,7 @@ export const setTextCommand = new Command("set-text")
       await tx.wait();
       console.log(chalk.green(`Set ${chalk.bold(key)} = ${value}`));
     } catch (err: any) {
-      console.error(chalk.red(err.message));
-      process.exit(1);
+      handleError(err);
     }
   });
 
@@ -157,8 +155,7 @@ export const setAddrCommand = new Command("set-addr")
         console.log(chalk.green(`Set coin ${coinType} address.`));
       }
     } catch (err: any) {
-      console.error(chalk.red(err.message));
-      process.exit(1);
+      handleError(err);
     }
   });
 
@@ -195,7 +192,6 @@ export const setContenthashCommand = new Command("set-contenthash")
       await tx.wait();
       console.log(chalk.green("Content hash updated."));
     } catch (err: any) {
-      console.error(chalk.red(err.message));
-      process.exit(1);
+      handleError(err);
     }
   });
