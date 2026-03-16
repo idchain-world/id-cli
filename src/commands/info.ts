@@ -11,6 +11,7 @@ export const infoCommand = new Command("info")
   .description("Show details for an agent name")
   .argument("<name>", "Name (e.g., agent-0, neo.agent-0, agent-0.base.xid.eth)")
   .option("-c, --chain <chain>", "Chain (not needed for full domain names)", "base")
+  .option("--brief", "Show only owner and lock status (skip records)")
   .action(async (name, opts) => {
     try {
       const resolved = resolveName(name, opts.chain);
@@ -45,30 +46,32 @@ export const infoCommand = new Command("info")
         humanLog(`  Status:  ${chalk.green("permanent")}`);
       }
 
-      // Fetch records from indexer (public endpoint)
+      // Fetch records from indexer (public endpoint) unless --brief
       let textRecords: any[] = [];
       let addressRecords: any[] = [];
-      try {
-        const res = await indexerFetch(`/api/domains/${resolved.node}/records`);
-        if (res.ok) {
-          const records = await res.json();
-          textRecords = records.textRecords || [];
-          addressRecords = records.addressRecords || [];
-          if (textRecords.length) {
-            humanLog(chalk.dim("\n  Text Records:"));
-            for (const r of textRecords) {
-              humanLog(`    ${r.key}: ${r.value}`);
+      if (!opts.brief) {
+        try {
+          const res = await indexerFetch(`/api/domains/${resolved.node}/records`);
+          if (res.ok) {
+            const records = await res.json();
+            textRecords = records.textRecords || [];
+            addressRecords = records.addressRecords || [];
+            if (textRecords.length) {
+              humanLog(chalk.dim("\n  Text Records:"));
+              for (const r of textRecords) {
+                humanLog(`    ${r.key}: ${r.value}`);
+              }
+            }
+            if (addressRecords.length) {
+              humanLog(chalk.dim("\n  Address Records:"));
+              for (const r of addressRecords) {
+                humanLog(`    coin ${r.coinType}: ${r.address}`);
+              }
             }
           }
-          if (addressRecords.length) {
-            humanLog(chalk.dim("\n  Address Records:"));
-            for (const r of addressRecords) {
-              humanLog(`    coin ${r.coinType}: ${r.address}`);
-            }
-          }
+        } catch {
+          // Skip if indexer unavailable
         }
-      } catch {
-        // Skip if indexer unavailable
       }
 
       outputSuccess({
@@ -78,8 +81,7 @@ export const infoCommand = new Command("info")
         owner,
         locked: isLocked,
         ethAddress: ethAddr !== ethers.ZeroAddress ? ethAddr : null,
-        textRecords,
-        addressRecords,
+        ...(opts.brief ? {} : { textRecords, addressRecords }),
       }, { chain: config.name, chainId: resolved.chainId });
     } catch (err: any) {
       handleErrorJson(err);

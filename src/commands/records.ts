@@ -11,6 +11,7 @@ export const recordsCommand = new Command("records")
   .description("Show all records for a name")
   .argument("<name>", "Name (e.g., agent-0, neo.agent-0, agent-0.base.xid.eth)")
   .option("-c, --chain <chain>", "Chain", "base")
+  .option("--select <fields>", "Comma-separated fields to include (text,address,data,contenthash)")
   .action(async (name, opts) => {
     try {
       const resolved = resolveName(name, opts.chain);
@@ -31,40 +32,44 @@ export const recordsCommand = new Command("records")
       }
 
       const records = await res.json();
-      if (records.textRecords?.length) {
+      const fields = opts.select
+        ? new Set(opts.select.split(",").map((s: string) => s.trim()))
+        : null;
+      const showAll = !fields;
+
+      if ((showAll || fields?.has("text")) && records.textRecords?.length) {
         humanLog(chalk.dim("Text Records:"));
         for (const r of records.textRecords) {
           humanLog(`  ${chalk.bold(r.key)}: ${r.value}`);
         }
-      } else {
+      } else if (showAll) {
         humanLog(chalk.dim("No text records."));
       }
 
-      if (records.addressRecords?.length) {
+      if ((showAll || fields?.has("address")) && records.addressRecords?.length) {
         humanLog(chalk.dim("\nAddress Records:"));
         for (const r of records.addressRecords) {
           humanLog(`  ${chalk.bold(`coin ${r.coinType}`)}: ${r.address}`);
         }
       }
 
-      if (records.dataRecords?.length) {
+      if ((showAll || fields?.has("data")) && records.dataRecords?.length) {
         humanLog(chalk.dim("\nData Records:"));
         for (const r of records.dataRecords) {
           humanLog(`  ${chalk.bold(r.key)}: ${r.value}`);
         }
       }
 
-      if (records.contenthash && records.contenthash !== "0x") {
+      if ((showAll || fields?.has("contenthash")) && records.contenthash && records.contenthash !== "0x") {
         humanLog(chalk.dim(`\nContent hash: ${records.contenthash}`));
       }
 
-      outputSuccess({
-        domain: resolved.domain,
-        textRecords: records.textRecords || [],
-        addressRecords: records.addressRecords || [],
-        dataRecords: records.dataRecords || [],
-        contenthash: records.contenthash || null,
-      }, { chainId: resolved.chainId });
+      const data: any = { domain: resolved.domain };
+      if (showAll || fields?.has("text")) data.textRecords = records.textRecords || [];
+      if (showAll || fields?.has("address")) data.addressRecords = records.addressRecords || [];
+      if (showAll || fields?.has("data")) data.dataRecords = records.dataRecords || [];
+      if (showAll || fields?.has("contenthash")) data.contenthash = records.contenthash || null;
+      outputSuccess(data, { chainId: resolved.chainId });
     } catch (err: any) {
       handleErrorJson(err);
     }
