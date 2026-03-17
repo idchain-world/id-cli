@@ -53,6 +53,35 @@ id-cli transfer agent-0 --to 0x1234... --dry-run
 id-cli set-text agent-0 description "hello" --dry-run
 ```
 
+## JSON Output
+
+All commands support structured JSON output for agent consumption:
+
+```bash
+id-cli info agent-0 --output json
+id-cli explore --output json
+```
+
+When stdout is not a TTY (e.g., piped), JSON is the default. The envelope format:
+
+```json
+{
+  "status": "ok",
+  "data": { ... },
+  "metadata": { "chain": "Base", "chainId": 8453 }
+}
+```
+
+## Schema Introspection
+
+Agents can discover all commands and their parameters programmatically:
+
+```bash
+id-cli schema                    # dump all commands as JSON
+id-cli schema register           # describe a specific command
+id-cli schema set-agent-endpoints
+```
+
 ## Commands
 
 ### Register
@@ -85,6 +114,7 @@ Show details for a registered name, including owner, lock status, and records.
 id-cli info agent-0
 id-cli info agent-7 --chain base
 id-cli info neo.agent-0.base.xid.eth
+id-cli info agent-0 --brief              # skip records, just owner + lock status
 ```
 
 ### Records
@@ -94,6 +124,8 @@ View all records for a name.
 ```bash
 id-cli records agent-0
 id-cli records agent-0 --chain op
+id-cli records agent-0 --select text           # only text records
+id-cli records agent-0 --select text,address   # text + address records
 ```
 
 ### Set Text
@@ -120,6 +152,44 @@ id-cli set-addr agent-0 0x... --coin-type 0   # Bitcoin (coin type 0)
 id-cli set-contenthash agent-0 0xe301...
 ```
 
+### Set Agent Endpoints (ENSIP-26)
+
+Set agent endpoint records per the [ENSIP-26](https://docs.ens.domains/ensip/26) specification. All endpoints are set in a single `setRecord` transaction.
+
+```bash
+id-cli set-agent-endpoints agent-0 \
+  --mcp https://agent.example.com/mcp \
+  --a2a https://agent.example.com/a2a \
+  --web https://agent.example.com \
+  --context "Token swap agent for DeFi"
+
+# Set only an MCP endpoint
+id-cli set-agent-endpoints agent-0 --mcp https://mcp.example.com
+
+# Clear specific endpoints
+id-cli set-agent-endpoints agent-0 --clear mcp,a2a
+
+# Clear all agent endpoints
+id-cli set-agent-endpoints agent-0 --clear all
+```
+
+Supported protocols: `mcp` (Model Context Protocol), `a2a` (Agent-to-Agent), `oasf` (OpenAPI Service Format), `web` (Web interface).
+
+### Set Record (Bulk)
+
+Set multiple records atomically in a single `setRecord` transaction.
+
+```bash
+id-cli set-record agent-0 \
+  --text "description=My agent" "url=https://example.com" \
+  --addr "60=0x1234..." \
+  --contenthash 0xe301...
+
+id-cli set-record agent-0 \
+  --text "agent-endpoint[mcp]=https://mcp.example.com" \
+  --text "agent-endpoint[a2a]=https://a2a.example.com"
+```
+
 ### Create Subname
 
 Create a subname under an agent. Useful for building swarms where each worker gets its own identity.
@@ -135,6 +205,7 @@ id-cli create-subname scout --parent agent-0 --owner 0x1234...
 ```bash
 id-cli list-subnames agent-0
 id-cli list-subnames agent-0.base.xid.eth
+id-cli list-subnames agent-0 --limit 100 --offset 50
 ```
 
 ### Register Agent (ERC-8004)
@@ -176,19 +247,36 @@ id-cli mint-usdc --chain sepolia --amount 1000
 
 ## Examples
 
-Register an agent on Sepolia with metadata, then create a swarm:
+Register an agent with ENSIP-26 endpoints and a swarm:
 
 ```bash
-# Register
-id-cli register --chain sepolia --text description="Coordinator agent"
+# Register on Base
+id-cli register --text description="Coordinator agent"
+
+# Set agent endpoints (ENSIP-26) in one transaction
+id-cli set-agent-endpoints agent-0 \
+  --mcp https://agent.example.com/mcp \
+  --a2a https://agent.example.com/a2a \
+  --context "Coordinator agent that manages DeFi operations"
 
 # Create swarm workers
-id-cli create-subname alpha --parent agent-0 --chain sepolia
-id-cli create-subname bravo --parent agent-0 --chain sepolia
-id-cli create-subname charlie --parent agent-0 --chain sepolia
+id-cli create-subname alpha --parent agent-0
+id-cli create-subname bravo --parent agent-0
 
-# Set records on a worker
-id-cli set-text alpha.agent-0 description "Alpha worker" --chain sepolia
+# Set records on a worker using bulk update
+id-cli set-record alpha.agent-0 \
+  --text "description=Alpha worker" \
+  --text "agent-endpoint[mcp]=https://alpha.example.com/mcp"
+```
+
+Use JSON output for agent pipelines:
+
+```bash
+# Pipe structured data to jq
+id-cli info agent-0 --output json | jq '.data.owner'
+
+# Agent discovers CLI capabilities
+id-cli schema set-agent-endpoints
 ```
 
 ## Environment Variables
@@ -203,6 +291,7 @@ id-cli set-text alpha.agent-0 description "Alpha worker" --chain sepolia
 | `RPC_URL_SEPOLIA` | No | Custom RPC for Sepolia |
 | `RPC_URL` | No | Global RPC override (applies to all chains) |
 | `INDEXER_URL` | No | Override the default indexer API URL |
+| `INDEXER_API_KEY` | No | API key for protected indexer endpoints (explore, by-owner) |
 
 ### RPC Configuration
 
