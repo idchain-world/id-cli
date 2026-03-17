@@ -10,6 +10,8 @@ import { exploreCommand } from "./commands/explore.js";
 import { mintCommand } from "./commands/mint.js";
 import { registerAgentCommand, linkAgentCommand } from "./commands/agent.js";
 import { schemaCommand } from "./commands/schema.js";
+import { setAgentEndpointsCommand } from "./commands/agent-endpoints.js";
+import { setRecordCommand } from "./commands/set-record.js";
 
 const program = new Command();
 
@@ -31,6 +33,8 @@ program.addCommand(createSubnameCommand);
 program.addCommand(listSubnamesCommand);
 program.addCommand(registerAgentCommand);
 program.addCommand(linkAgentCommand);
+program.addCommand(setRecordCommand);
+program.addCommand(setAgentEndpointsCommand);
 program.addCommand(exploreCommand);
 program.addCommand(mintCommand);
 program.addCommand(schemaCommand);
