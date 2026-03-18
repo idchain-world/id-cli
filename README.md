@@ -157,9 +157,10 @@ id-cli set-contenthash agent-0 0xe301...
 Set the reverse resolution for an address so it resolves to an agent name. Supports both the default reverse (ETH/coinType 60) and chain-specific reverses per ENSIP-19.
 
 ```bash
-# By agent name — looks up the agent's ETH address and sets reverse
-id-cli set-reverse agent-0.base.xid.eth ETH
-id-cli set-reverse agent-0.base.xid.eth 60          # same as ETH
+# Default reverse (L1 Ethereum addr.reverse)
+id-cli set-reverse agent-0.base.xid.eth DEFAULT
+id-cli set-reverse agent-0.base.xid.eth ETH         # same as DEFAULT
+id-cli set-reverse agent-0.base.xid.eth 60           # same as DEFAULT
 
 # Chain-specific reverse
 id-cli set-reverse agent-0.base.xid.eth BASE        # Base chain reverse
@@ -174,7 +175,7 @@ id-cli set-reverse 0x1234...abc ETH --name agent-0.base.xid.eth
 id-cli set-reverse agent-0.base.xid.eth ETH --name neo.agent-0.base.xid.eth
 ```
 
-Supported coin types: `ETH` (60, default), `BASE`, `OP`, `ARB`, `SEP`, `BTC` (0), or any numeric coin type.
+Supported coin types: `DEFAULT` (L1 Ethereum, same as `ETH`/60), `BASE`, `OP`, `ARB`, `SEP`, `BTC` (0), or any numeric coin type.
 
 Auto-detects whether to use `setText` (if you already own the reverse node) or `setSubnodeRecord` (to claim and set in one transaction).
 

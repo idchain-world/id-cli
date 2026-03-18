@@ -11,6 +11,7 @@ import { outputSuccess, handleErrorJson, humanLog, statusLog } from "../output.j
 
 // ENSIP-19: EVM coin types are 0x80000000 + chainId (unsigned)
 const COIN_TYPE_ALIASES: Record<string, number> = {
+  DEFAULT: 60,
   ETH: 60,
   BTC: 0,
   BASE: 0x80002105,     // 2147492101
@@ -124,7 +125,7 @@ async function resolveAddressFromAgent(
 export const setReverseCommand = new Command("set-reverse")
   .description("Set reverse name for an address (ENSIP-19)")
   .argument("<name-or-address>", "Full agent name (e.g., agent-0.base.xid.eth) or hex address (0x...)")
-  .argument("[cointype]", "Coin type: 60, ETH, BASE, OP, ARB, SEP, or a number", "60")
+  .argument("[cointype]", "Coin type: DEFAULT, ETH, BASE, OP, ARB, SEP, or a number", "DEFAULT")
   .option("-c, --chain <chain>", "Override chain for registry interaction (auto-detected from cointype)")
   .option("--name <name>", "Reverse name to set (defaults to agent's full domain)")
   .option("--dry-run", "Show transaction proposal without executing")
