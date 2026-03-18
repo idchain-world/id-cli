@@ -152,6 +152,32 @@ id-cli set-addr agent-0 0x... --coin-type 0   # Bitcoin (coin type 0)
 id-cli set-contenthash agent-0 0xe301...
 ```
 
+### Set Reverse Name (ENSIP-19)
+
+Set the reverse resolution for an address so it resolves to an agent name. Supports both the default reverse (ETH/coinType 60) and chain-specific reverses per ENSIP-19.
+
+```bash
+# By agent name — looks up the agent's ETH address and sets reverse
+id-cli set-reverse agent-0 ETH
+id-cli set-reverse agent-0 60               # same as ETH
+
+# Chain-specific reverse
+id-cli set-reverse agent-0 BASE             # Base chain reverse
+id-cli set-reverse agent-0 OP               # Optimism chain reverse
+id-cli set-reverse agent-0 ARB              # Arbitrum chain reverse
+
+# By direct address
+id-cli set-reverse 0x1234...abc --name agent-0.base.xid.eth
+id-cli set-reverse 0x1234...abc ETH --name agent-0.base.xid.eth
+
+# Override which name to reverse to
+id-cli set-reverse agent-0 ETH --name neo.agent-0.base.xid.eth
+```
+
+Supported coin types: `ETH` (60, default), `BASE`, `OP`, `ARB`, `SEP`, `BTC` (0), or any numeric coin type.
+
+Auto-detects whether to use `setText` (if you already own the reverse node) or `setSubnodeRecord` (to claim and set in one transaction).
+
 ### Set Agent Endpoints (ENSIP-26)
 
 Set agent endpoint records per the [ENSIP-26](https://docs.ens.domains/ensip/26) specification. All endpoints are set in a single `setRecord` transaction.

@@ -21,6 +21,7 @@ export const REGISTRY_ABI = [
   "function setRecord(bytes32 node, string[] keys, string[] values, uint256[] coinTypes, bytes[] addresses, bytes contentHash, string[] dataKeys, bytes[] dataValues)",
   "function setOwner(bytes32 node, address newOwner)",
   "function setSubnodeOwner(bytes32 node, string label, address newOwner) returns (bytes32)",
+  "function setSubnodeRecord(bytes32 parentNode, string label, address newOwner, string[] keys, string[] values, uint256[] coinTypes, bytes[] addresses, bytes contentHash, string[] dataKeys, bytes[] dataValues) returns (bytes32)",
   "event TextChanged(bytes32 indexed node, string key, string value)",
   "event AddressChanged(bytes32 indexed node, uint256 coinType, bytes newAddress)",
   "event ContenthashChanged(bytes32 indexed node, bytes hash)",

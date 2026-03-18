@@ -12,6 +12,7 @@ import { registerAgentCommand, linkAgentCommand } from "./commands/agent.js";
 import { schemaCommand } from "./commands/schema.js";
 import { setAgentEndpointsCommand } from "./commands/agent-endpoints.js";
 import { setRecordCommand } from "./commands/set-record.js";
+import { setReverseCommand } from "./commands/set-reverse.js";
 
 const program = new Command();
 
@@ -35,6 +36,7 @@ program.addCommand(registerAgentCommand);
 program.addCommand(linkAgentCommand);
 program.addCommand(setRecordCommand);
 program.addCommand(setAgentEndpointsCommand);
+program.addCommand(setReverseCommand);
 program.addCommand(exploreCommand);
 program.addCommand(mintCommand);
 program.addCommand(schemaCommand);
