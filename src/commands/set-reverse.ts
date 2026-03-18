@@ -39,6 +39,21 @@ function coinTypeLabel(coinType: number): string {
   return `coinType ${coinType}`;
 }
 
+/**
+ * Determine which chain's registry holds the reverse namespace for a given coinType.
+ * - coinType 60 (ETH default) → Ethereum L1 (chainId 1)
+ * - EVM coinTypes (0x80000000 + chainId) → that chain
+ * - Other coinTypes → null (use --chain flag)
+ */
+function registryChainForCoinType(coinType: number): number | null {
+  if (coinType === 60) return 1; // Default reverse lives on L1 Ethereum
+  if (coinType >= 0x80000000) {
+    const chainId = coinType - 0x80000000;
+    return chainId;
+  }
+  return null; // Unknown — user must specify --chain
+}
+
 // ── Reverse node computation (ENSIP-19) ─────────────────────────────────────
 
 function reverseNodeFor(address: string, coinType: number): { node: string; domain: string; parentNode: string; label: string } {
@@ -110,19 +125,16 @@ export const setReverseCommand = new Command("set-reverse")
   .description("Set reverse name for an address (ENSIP-19)")
   .argument("<name-or-address>", "Full agent name (e.g., agent-0.base.xid.eth) or hex address (0x...)")
   .argument("[cointype]", "Coin type: 60, ETH, BASE, OP, ARB, SEP, or a number", "60")
-  .option("-c, --chain <chain>", "Chain for registry interaction", "base")
+  .option("-c, --chain <chain>", "Override chain for registry interaction (auto-detected from cointype)")
   .option("--name <name>", "Reverse name to set (defaults to agent's full domain)")
   .option("--dry-run", "Show transaction proposal without executing")
   .action(async (nameOrAddr, cointypeArg, opts) => {
     try {
       const coinType = resolveCoinType(cointypeArg);
-      const chainId = opts.chain
-        ? (await import("../config.js")).resolveChain(opts.chain)
-        : 8453;
-      const config = getChainConfig(chainId);
 
       let targetAddress: string;
       let reverseName: string;
+      let nameChainId: number | undefined; // chain where the agent name lives (for address lookup)
 
       if (isHexAddress(nameOrAddr)) {
         // Direct hex address
@@ -135,14 +147,23 @@ export const setReverseCommand = new Command("set-reverse")
         }
         reverseName = opts.name;
       } else {
-        // Agent name — resolve address from registry
+        // Agent name — resolve address from the name's chain registry
         const resolved = resolveName(nameOrAddr, opts.chain);
         reverseName = opts.name || resolved.domain;
+        nameChainId = resolved.chainId;
 
+        const nameConfig = getChainConfig(resolved.chainId);
         const provider = getProvider(resolved.chainId);
-        const readRegistry = new ethers.Contract(config.ID_REGISTRY, REGISTRY_ABI, provider);
+        const readRegistry = new ethers.Contract(nameConfig.ID_REGISTRY, REGISTRY_ABI, provider);
         targetAddress = await resolveAddressFromAgent(readRegistry, resolved.node, coinType, resolved.domain);
       }
+
+      // Determine which chain's registry holds the reverse namespace
+      const autoChainId = registryChainForCoinType(coinType);
+      const reverseChainId = opts.chain
+        ? (await import("../config.js")).resolveChain(opts.chain)
+        : autoChainId || nameChainId || 8453;
+      const config = getChainConfig(reverseChainId);
 
       const reverse = reverseNodeFor(targetAddress, coinType);
 
@@ -150,14 +171,14 @@ export const setReverseCommand = new Command("set-reverse")
       humanLog(`  Address:    ${targetAddress}`);
       humanLog(`  CoinType:   ${coinTypeLabel(coinType)} (${coinType})`);
       humanLog(`  Reverse to: ${chalk.bold(reverseName)}`);
+      humanLog(`  Registry:   ${config.name} (${reverseChainId})`);
       humanLog(`  Node:       ${chalk.dim(reverse.node)}`);
       humanLog(`  Namespace:  ${chalk.dim(reverse.domain)}`);
 
       if (isDryRun()) {
-        // Show both possible approaches
         proposeTx({
           action: `Set reverse name for ${targetAddress} → ${reverseName}`,
-          chainId,
+          chainId: reverseChainId,
           contractName: "IDRegistry",
           contractAddress: config.ID_REGISTRY,
           functionAbi: "function setText(bytes32 node, string key, string value)",
@@ -166,6 +187,7 @@ export const setReverseCommand = new Command("set-reverse")
           notes: [
             `Reverse domain: ${reverse.domain}`,
             `CoinType: ${coinTypeLabel(coinType)} (${coinType})`,
+            `Registry chain: ${config.name} (auto-detected from cointype)`,
             "Uses setText if you already own the reverse node.",
             "If not owned, will use setSubnodeRecord to claim + set in one tx.",
           ],
@@ -173,7 +195,7 @@ export const setReverseCommand = new Command("set-reverse")
         return;
       }
 
-      const wallet = getWallet(chainId);
+      const wallet = getWallet(reverseChainId);
       const registry = new ethers.Contract(config.ID_REGISTRY, REGISTRY_ABI, wallet);
 
       // Check if we already own the reverse node
@@ -214,7 +236,7 @@ export const setReverseCommand = new Command("set-reverse")
         reverseDomain: reverse.domain,
         method: weOwnIt ? "setText" : "setSubnodeRecord",
         txHash: tx.hash,
-      }, { chain: config.name, chainId });
+      }, { chain: config.name, chainId: reverseChainId });
     } catch (err: any) {
       handleErrorJson(err);
     }
