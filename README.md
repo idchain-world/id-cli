@@ -154,12 +154,15 @@ id-cli set-contenthash agent-0 0xe301...
 
 ### Set Reverse Name (ENSIP-19)
 
-Set the reverse resolution for your wallet address using the ENS Reverse Registrar. Supports the default L1 reverse (`addr.reverse`) and chain-specific reverses per ENSIP-19.
+Set the reverse resolution for your wallet address using the ENS Reverse Registrar. Supports the default L1 fallback reverse (`reverse`), Ethereum-specific reverse (`addr.reverse`), and chain-specific reverses per ENSIP-19.
 
 ```bash
-# Default reverse (L1 Ethereum addr.reverse) — calls setName() on L1
+# Default fallback reverse (L1 "reverse" namespace) — uses 0x283F...
 id-cli set-reverse agent-0.base.xid.eth
 id-cli set-reverse agent-0.base.xid.eth DEFAULT
+
+# Ethereum-specific reverse (L1 "addr.reverse" namespace) — uses 0xa58E...
+id-cli set-reverse agent-0.base.xid.eth ETH
 
 # Chain-specific reverse — calls setName() on that chain's reverse registrar
 id-cli set-reverse agent-0.base.xid.eth BASE
@@ -170,7 +173,7 @@ id-cli set-reverse agent-0.arb.xid.eth ARB
 id-cli set-reverse agent-0.base.xid.eth BASE --addr 0x1234...
 ```
 
-Targets: `DEFAULT` (L1 Ethereum), `BASE`, `OP`, `ARB`, `SEP`.
+Targets: `DEFAULT` (L1 fallback), `ETH` (L1 addr.reverse), `BASE`, `OP`, `ARB`, `SEP`.
 
 Uses `setName(string)` on the ENS Reverse Registrar for your wallet, or `setNameForAddr(address, string)` with `--addr`.
 
