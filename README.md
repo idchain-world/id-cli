@@ -154,30 +154,25 @@ id-cli set-contenthash agent-0 0xe301...
 
 ### Set Reverse Name (ENSIP-19)
 
-Set the reverse resolution for an address so it resolves to an agent name. Supports both the default reverse (ETH/coinType 60) and chain-specific reverses per ENSIP-19.
+Set the reverse resolution for your wallet address using the ENS Reverse Registrar. Supports the default L1 reverse (`addr.reverse`) and chain-specific reverses per ENSIP-19.
 
 ```bash
-# Default reverse (L1 Ethereum addr.reverse)
+# Default reverse (L1 Ethereum addr.reverse) — calls setName() on L1
+id-cli set-reverse agent-0.base.xid.eth
 id-cli set-reverse agent-0.base.xid.eth DEFAULT
-id-cli set-reverse agent-0.base.xid.eth ETH         # same as DEFAULT
-id-cli set-reverse agent-0.base.xid.eth 60           # same as DEFAULT
 
-# Chain-specific reverse
-id-cli set-reverse agent-0.base.xid.eth BASE        # Base chain reverse
-id-cli set-reverse agent-0.op.xid.eth OP             # Optimism chain reverse
-id-cli set-reverse agent-0.arb.xid.eth ARB           # Arbitrum chain reverse
+# Chain-specific reverse — calls setName() on that chain's reverse registrar
+id-cli set-reverse agent-0.base.xid.eth BASE
+id-cli set-reverse agent-0.op.xid.eth OP
+id-cli set-reverse agent-0.arb.xid.eth ARB
 
-# By direct address
-id-cli set-reverse 0x1234...abc --name agent-0.base.xid.eth
-id-cli set-reverse 0x1234...abc ETH --name agent-0.base.xid.eth
-
-# Override which name to reverse to
-id-cli set-reverse agent-0.base.xid.eth ETH --name neo.agent-0.base.xid.eth
+# Set reverse for a specific address (e.g., a contract you own)
+id-cli set-reverse agent-0.base.xid.eth BASE --addr 0x1234...
 ```
 
-Supported coin types: `DEFAULT` (L1 Ethereum, same as `ETH`/60), `BASE`, `OP`, `ARB`, `SEP`, `BTC` (0), or any numeric coin type.
+Targets: `DEFAULT` (L1 Ethereum), `BASE`, `OP`, `ARB`, `SEP`.
 
-Auto-detects whether to use `setText` (if you already own the reverse node) or `setSubnodeRecord` (to claim and set in one transaction).
+Uses `setName(string)` on the ENS Reverse Registrar for your wallet, or `setNameForAddr(address, string)` with `--addr`.
 
 ### Set Agent Endpoints (ENSIP-26)
 

@@ -43,6 +43,11 @@ export const USDC_ABI = [
   "function transfer(address to, uint256 amount) returns (bool)",
 ];
 
+export const REVERSE_REGISTRAR_ABI = [
+  "function setName(string name) returns (bytes32)",
+  "function setNameForAddr(address addr, string name) returns (bytes32)",
+];
+
 export const IDENTITY_REGISTRY_ABI = [
   "function register(string agentURI) returns (uint256)",
   "function agentURI(uint256 agentId) view returns (string)",
