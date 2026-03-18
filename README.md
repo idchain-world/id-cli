@@ -158,20 +158,20 @@ Set the reverse resolution for an address so it resolves to an agent name. Suppo
 
 ```bash
 # By agent name — looks up the agent's ETH address and sets reverse
-id-cli set-reverse agent-0 ETH
-id-cli set-reverse agent-0 60               # same as ETH
+id-cli set-reverse agent-0.base.xid.eth ETH
+id-cli set-reverse agent-0.base.xid.eth 60          # same as ETH
 
 # Chain-specific reverse
-id-cli set-reverse agent-0 BASE             # Base chain reverse
-id-cli set-reverse agent-0 OP               # Optimism chain reverse
-id-cli set-reverse agent-0 ARB              # Arbitrum chain reverse
+id-cli set-reverse agent-0.base.xid.eth BASE        # Base chain reverse
+id-cli set-reverse agent-0.op.xid.eth OP             # Optimism chain reverse
+id-cli set-reverse agent-0.arb.xid.eth ARB           # Arbitrum chain reverse
 
 # By direct address
 id-cli set-reverse 0x1234...abc --name agent-0.base.xid.eth
 id-cli set-reverse 0x1234...abc ETH --name agent-0.base.xid.eth
 
 # Override which name to reverse to
-id-cli set-reverse agent-0 ETH --name neo.agent-0.base.xid.eth
+id-cli set-reverse agent-0.base.xid.eth ETH --name neo.agent-0.base.xid.eth
 ```
 
 Supported coin types: `ETH` (60, default), `BASE`, `OP`, `ARB`, `SEP`, `BTC` (0), or any numeric coin type.

@@ -108,7 +108,7 @@ async function resolveAddressFromAgent(
 
 export const setReverseCommand = new Command("set-reverse")
   .description("Set reverse name for an address (ENSIP-19)")
-  .argument("<name-or-address>", "Agent name (e.g., agent-0) or hex address (0x...)")
+  .argument("<name-or-address>", "Full agent name (e.g., agent-0.base.xid.eth) or hex address (0x...)")
   .argument("[cointype]", "Coin type: 60, ETH, BASE, OP, ARB, SEP, or a number", "60")
   .option("-c, --chain <chain>", "Chain for registry interaction", "base")
   .option("--name <name>", "Reverse name to set (defaults to agent's full domain)")
