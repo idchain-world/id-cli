@@ -48,6 +48,38 @@ export const REVERSE_REGISTRAR_ABI = [
   "function setNameForAddr(address addr, string name) returns (bytes32)",
 ];
 
+// ENS core contracts (L1 / Sepolia)
+export const ENS_REGISTRY_ABI = [
+  "function resolver(bytes32 node) view returns (address)",
+  "function owner(bytes32 node) view returns (address)",
+  "function setResolver(bytes32 node, address resolver)",
+];
+
+export const ENS_NAME_WRAPPER_ABI = [
+  "function ownerOf(uint256 id) view returns (address)",
+  "function setResolver(bytes32 node, address resolver)",
+];
+
+export const ENS_REGISTRAR_CONTROLLER_ABI = [
+  "function available(string name) view returns (bool)",
+  "function rentPrice(string name, uint256 duration) view returns (tuple(uint256 base, uint256 premium))",
+  "function makeCommitment(string name, address owner, uint256 duration, bytes32 secret, address resolver, bytes[] data, bool reverseRecord, uint16 ownerControlledFuses) pure returns (bytes32)",
+  "function commit(bytes32 commitment)",
+  "function register(string name, address owner, uint256 duration, bytes32 secret, address resolver, bytes[] data, bool reverseRecord, uint16 ownerControlledFuses) payable",
+];
+
+// IDLinkedResolver — on-chain linking for eth.xid.eth / sep.xid.eth
+export const ID_LINKED_RESOLVER_ABI = [
+  "function setLink(bytes32 ensNode, bytes32 agentNode)",
+  "function links(bytes32 ensNode) view returns (bytes32)",
+];
+
+// IDUnifiedResolver — CCIP-Read linking for base/arb/op.xid.eth
+export const ID_UNIFIED_RESOLVER_ABI = [
+  "function setLink(bytes32 ensNode, uint256 chainId, bytes32 agentNode)",
+  "function links(bytes32 ensNode) view returns (uint256 chainId, bytes32 agentNode)",
+];
+
 export const IDENTITY_REGISTRY_ABI = [
   "function register(string agentURI) returns (uint256)",
   "function agentURI(uint256 agentId) view returns (string)",

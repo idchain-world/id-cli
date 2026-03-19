@@ -233,6 +233,49 @@ id-cli list-subnames agent-0.base.xid.eth
 id-cli list-subnames agent-0 --limit 100 --offset 50
 ```
 
+### Register ENS Name
+
+Register a .eth name via the ENS two-step commit/reveal process. Requires ETH for the registration fee.
+
+```bash
+# Register on mainnet ENS (default for all chains except Sepolia)
+id-cli register-ens alice
+
+# Register on Sepolia ENS
+id-cli register-ens alice --chain sepolia
+
+# Custom duration (default: 1 year = 31536000 seconds)
+id-cli register-ens alice --duration 63072000   # 2 years
+
+# Register for a different owner
+id-cli register-ens alice --owner 0x1234...
+```
+
+### Link ENS Name
+
+Link an existing .eth name to an agent ID. This is a three-step process:
+1. **Back-link**: Set `ens-link[name.eth]` = "true" on the agent (agent's chain)
+2. **Forward link**: Call `setLink()` on the linking resolver (L1/Sepolia)
+3. **Set resolver**: Point the .eth name's resolver to the linking resolver (L1/Sepolia)
+
+```bash
+# Link alice.eth to a Base agent (all 3 steps)
+id-cli link-ens alice.eth agent-0.base.xid.eth
+
+# Link to an L1 Ethereum agent
+id-cli link-ens alice.eth agent-0.eth.xid.eth
+
+# Link to a Sepolia agent
+id-cli link-ens alice.eth agent-0.sep.xid.eth
+
+# Run a single step (useful if some steps are already done)
+id-cli link-ens alice.eth agent-0.base.xid.eth --step 1   # back-link only
+id-cli link-ens alice.eth agent-0.base.xid.eth --step 2   # forward link only
+id-cli link-ens alice.eth agent-0.base.xid.eth --step 3   # set resolver only
+```
+
+For L1 agents (eth/sep), uses **IDLinkedResolver** (on-chain). For L2 agents (base/op/arb), uses **IDUnifiedResolver** (CCIP-Read).
+
 ### Register Agent (ERC-8004)
 
 Register on the ERC-8004 IdentityRegistry.
