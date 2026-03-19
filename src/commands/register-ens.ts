@@ -46,9 +46,10 @@ export const registerEnsCommand = new Command("register-ens")
         );
       }
 
+      const MIN_DURATION = 30 * 24 * 60 * 60; // 30 days
       const durationSeconds = parseInt(opts.duration, 10);
-      if (isNaN(durationSeconds) || durationSeconds <= 0) {
-        throw new CliError("Duration must be a positive number of seconds.", ExitCode.INPUT_ERROR);
+      if (isNaN(durationSeconds) || durationSeconds < MIN_DURATION) {
+        throw new CliError(`Duration must be at least 30 days (${MIN_DURATION} seconds).`, ExitCode.INPUT_ERROR);
       }
 
       const ensName = `${label}.eth`;
