@@ -4,7 +4,7 @@ import chalk from "chalk";
 import { getChainConfig } from "../config.js";
 import { getWallet } from "../provider.js";
 import { REGISTRY_ABI } from "../abi.js";
-import { resolveName, isDryRun, proposeTx, verifyOwnership, CliError, ExitCode } from "../utils.js";
+import { resolveNameAsync, isDryRun, proposeTx, verifyOwnership, CliError, ExitCode } from "../utils.js";
 import { outputSuccess, handleErrorJson, humanLog, statusLog } from "../output.js";
 
 export const setRecordCommand = new Command("set-record")
@@ -18,7 +18,7 @@ export const setRecordCommand = new Command("set-record")
   .option("--dry-run", "Show transaction proposal without executing")
   .action(async (name, opts) => {
     try {
-      const resolved = resolveName(name, opts.chain);
+      const resolved = await resolveNameAsync(name, opts.chain);
       const config = getChainConfig(resolved.chainId);
 
       // Parse text records

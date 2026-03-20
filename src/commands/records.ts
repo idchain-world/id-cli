@@ -4,7 +4,7 @@ import chalk from "chalk";
 import { getChainConfig } from "../config.js";
 import { getWallet, getProvider } from "../provider.js";
 import { REGISTRY_ABI } from "../abi.js";
-import { resolveName, indexerFetch, isDryRun, proposeTx, parsePositiveInt, verifyOwnership } from "../utils.js";
+import { resolveNameAsync, indexerFetch, isDryRun, proposeTx, parsePositiveInt, verifyOwnership } from "../utils.js";
 import { outputSuccess, handleErrorJson, humanLog, statusLog } from "../output.js";
 
 export const recordsCommand = new Command("records")
@@ -14,7 +14,7 @@ export const recordsCommand = new Command("records")
   .option("--select <fields>", "Comma-separated fields to include (text,address,data,contenthash)")
   .action(async (name, opts) => {
     try {
-      const resolved = resolveName(name, opts.chain);
+      const resolved = await resolveNameAsync(name, opts.chain);
 
       humanLog(chalk.bold(`Records for ${resolved.domain}\n`));
 
@@ -84,7 +84,7 @@ export const setTextCommand = new Command("set-text")
   .option("--dry-run", "Show transaction proposal without executing")
   .action(async (name, key, value, opts) => {
     try {
-      const resolved = resolveName(name, opts.chain);
+      const resolved = await resolveNameAsync(name, opts.chain);
       const config = getChainConfig(resolved.chainId);
 
       if (isDryRun()) {
@@ -129,7 +129,7 @@ export const setAddrCommand = new Command("set-addr")
   .option("--dry-run", "Show transaction proposal without executing")
   .action(async (name, address, opts) => {
     try {
-      const resolved = resolveName(name, opts.chain);
+      const resolved = await resolveNameAsync(name, opts.chain);
       const config = getChainConfig(resolved.chainId);
       const coinType = parsePositiveInt(opts.coinType, "--coin-type");
 
@@ -192,7 +192,7 @@ export const setContenthashCommand = new Command("set-contenthash")
   .option("--dry-run", "Show transaction proposal without executing")
   .action(async (name, hash, opts) => {
     try {
-      const resolved = resolveName(name, opts.chain);
+      const resolved = await resolveNameAsync(name, opts.chain);
       const config = getChainConfig(resolved.chainId);
 
       if (isDryRun()) {

@@ -10,7 +10,7 @@ import {
   ID_LINKED_RESOLVER_ABI,
   ID_UNIFIED_RESOLVER_ABI,
 } from "../abi.js";
-import { resolveName, isDryRun, proposeTx, CliError, ExitCode, labelhash } from "../utils.js";
+import { resolveNameAsync, isDryRun, proposeTx, CliError, ExitCode, labelhash } from "../utils.js";
 import { outputSuccess, handleErrorJson, humanLog, statusLog } from "../output.js";
 
 // ── ENS contract addresses ──────────────────────────────────────────────────
@@ -109,7 +109,7 @@ export const linkEnsCommand = new Command("link-ens")
       }
 
       // Resolve agent name
-      const resolved = resolveName(agentName);
+      const resolved = await resolveNameAsync(agentName);
       const agentConfig = getChainConfig(resolved.chainId);
       const linkingConfig = getEnsLinkingConfig(resolved.chainId);
       const registryChainId = getRegistryChainId(resolved.chainId);

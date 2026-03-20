@@ -4,7 +4,7 @@ import chalk from "chalk";
 import { getChainConfig } from "../config.js";
 import { getProvider } from "../provider.js";
 import { REGISTRY_ABI } from "../abi.js";
-import { resolveName, indexerFetch } from "../utils.js";
+import { resolveNameAsync, indexerFetch } from "../utils.js";
 import { outputSuccess, handleErrorJson, humanLog } from "../output.js";
 
 export const infoCommand = new Command("info")
@@ -14,7 +14,7 @@ export const infoCommand = new Command("info")
   .option("--brief", "Show only owner and lock status (skip records)")
   .action(async (name, opts) => {
     try {
-      const resolved = resolveName(name, opts.chain);
+      const resolved = await resolveNameAsync(name, opts.chain);
       const config = getChainConfig(resolved.chainId);
       const provider = getProvider(resolved.chainId);
 

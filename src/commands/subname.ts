@@ -4,7 +4,7 @@ import chalk from "chalk";
 import { getChainConfig } from "../config.js";
 import { getWallet } from "../provider.js";
 import { REGISTRY_ABI } from "../abi.js";
-import { resolveName, indexerFetch, isDryRun, proposeTx, validateAddress, validateLabel, parsePositiveInt, verifyOwnership } from "../utils.js";
+import { resolveNameAsync, indexerFetch, isDryRun, proposeTx, validateAddress, validateLabel, parsePositiveInt, verifyOwnership } from "../utils.js";
 import { outputSuccess, handleErrorJson, humanLog, statusLog } from "../output.js";
 
 export const createSubnameCommand = new Command("create-subname")
@@ -17,7 +17,7 @@ export const createSubnameCommand = new Command("create-subname")
   .action(async (sublabel, opts) => {
     try {
       validateLabel(sublabel);
-      const parent = resolveName(opts.parent, opts.chain);
+      const parent = await resolveNameAsync(opts.parent, opts.chain);
       const config = getChainConfig(parent.chainId);
       const wallet = getWallet(parent.chainId);
       const owner = opts.owner ? validateAddress(opts.owner, "--owner") : wallet.address;
@@ -68,7 +68,7 @@ export const listSubnamesCommand = new Command("list-subnames")
   .option("-o, --offset <n>", "Offset for pagination", "0")
   .action(async (name, opts) => {
     try {
-      const resolved = resolveName(name, opts.chain);
+      const resolved = await resolveNameAsync(name, opts.chain);
       const limit = parsePositiveInt(opts.limit, "--limit");
       const offset = parsePositiveInt(opts.offset, "--offset");
 

@@ -4,7 +4,7 @@ import chalk from "chalk";
 import { getChainConfig } from "../config.js";
 import { getWallet } from "../provider.js";
 import { REGISTRY_ABI } from "../abi.js";
-import { resolveName, isDryRun, proposeTx, validateAddress, verifyOwnership } from "../utils.js";
+import { resolveNameAsync, isDryRun, proposeTx, validateAddress, verifyOwnership } from "../utils.js";
 import { outputSuccess, handleErrorJson, humanLog, statusLog } from "../output.js";
 
 export const transferCommand = new Command("transfer")
@@ -16,7 +16,7 @@ export const transferCommand = new Command("transfer")
   .action(async (name, opts) => {
     try {
       const toAddress = validateAddress(opts.to, "--to");
-      const resolved = resolveName(name, opts.chain);
+      const resolved = await resolveNameAsync(name, opts.chain);
       const config = getChainConfig(resolved.chainId);
       const wallet = getWallet(resolved.chainId);
 

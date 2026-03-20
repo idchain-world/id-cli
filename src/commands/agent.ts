@@ -4,7 +4,7 @@ import chalk from "chalk";
 import { resolveChain, getChainConfig } from "../config.js";
 import { getWallet } from "../provider.js";
 import { IDENTITY_REGISTRY_ABI, REGISTRY_ABI } from "../abi.js";
-import { resolveName, isDryRun, proposeTx } from "../utils.js";
+import { resolveNameAsync, isDryRun, proposeTx } from "../utils.js";
 import { outputSuccess, handleErrorJson, humanLog, statusLog } from "../output.js";
 
 /**
@@ -57,7 +57,7 @@ export const registerAgentCommand = new Command("register-agent")
       const wallet = getWallet(registryChainId);
 
       const nameChainId = opts.nameChain ? resolveChain(opts.nameChain) : registryChainId;
-      const resolved = resolveName(name, opts.nameChain || opts.chain);
+      const resolved = await resolveNameAsync(name, opts.nameChain || opts.chain);
 
       // Build agentURI
       const services: { name: string; endpoint: string }[] = [
@@ -178,7 +178,7 @@ export const linkAgentCommand = new Command("link-agent")
       const registryConfig = getChainConfig(registryChainId);
       const nameChainId = opts.nameChain ? resolveChain(opts.nameChain) : registryChainId;
       const nameConfig = getChainConfig(nameChainId);
-      const resolved = resolveName(name, opts.nameChain || opts.chain);
+      const resolved = await resolveNameAsync(name, opts.nameChain || opts.chain);
 
       const ensip25Key = buildEnsip25Key(registryChainId, registryConfig.IDENTITY_REGISTRY_8004, agentId);
 

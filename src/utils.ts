@@ -152,6 +152,61 @@ function resolvePathOnChain(path: string, chainId: number): ResolvedName {
   };
 }
 
+/**
+ * Async name resolution that supports both xid.eth names and linked .eth names.
+ * For .eth names, calls the idchain.world resolve API to find the linked agent.
+ */
+export async function resolveNameAsync(input: string, chainFlag?: string): Promise<ResolvedName> {
+  // If it ends with .eth but NOT .xid.eth, it's a linked ENS name
+  if (input.endsWith(".eth") && !input.endsWith(".xid.eth")) {
+    return resolveLinkedEnsName(input);
+  }
+  // Otherwise use the sync resolver
+  return resolveName(input, chainFlag);
+}
+
+const RESOLVE_API_URL = process.env.RESOLVE_API_URL || "https://idchain.world/api/v1/resolve";
+
+async function resolveLinkedEnsName(ensName: string): Promise<ResolvedName> {
+  const url = `${RESOLVE_API_URL}/${encodeURIComponent(ensName)}`;
+  const res = await fetch(url);
+  if (!res.ok) {
+    if (res.status === 404) {
+      throw new CliError(`Could not resolve ${ensName}. No verified link found.`, ExitCode.NOT_FOUND);
+    }
+    throw new CliError(`Failed to resolve ${ensName}: HTTP ${res.status}`, ExitCode.GENERAL_ERROR);
+  }
+  const json = await res.json();
+  if (!json.ok || !json.data) {
+    throw new CliError(`Failed to resolve ${ensName}: ${json.error?.message || "unknown error"}`, ExitCode.GENERAL_ERROR);
+  }
+
+  const { registryName, node, chain } = json.data;
+  if (!registryName || !node || !chain) {
+    throw new CliError(`Incomplete resolve response for ${ensName}.`, ExitCode.GENERAL_ERROR);
+  }
+
+  // Map chain name to chainId
+  const chainId = resolveChain(chain);
+
+  // Parse path and topLabel from registryName (e.g. "treo.agent-1.base.xid.eth" → path "treo.agent-1", topLabel "agent-1")
+  const suffixMatch = registryName.match(/^(.+?)(\.(base|eth|op|arb|sep)\.xid\.eth)$/);
+  if (!suffixMatch) {
+    throw new CliError(`Unexpected registry name format: ${registryName}`, ExitCode.GENERAL_ERROR);
+  }
+  const path = suffixMatch[1];
+  const labels = path.split(".");
+  const topLabel = labels[labels.length - 1];
+
+  return {
+    path,
+    node,
+    chainId,
+    domain: registryName,
+    topLabel,
+  };
+}
+
 export function formatUsdc(amount: bigint): string {
   return ethers.formatUnits(amount, 6);
 }

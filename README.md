@@ -34,13 +34,19 @@ You can also pass the numeric chain ID directly: `--chain 8453`.
 
 ## Full Domain Paths
 
-All commands accept either a short label or a full domain path:
+All commands accept a short label, a full domain path, or a linked .eth name:
 
 ```bash
 id-cli info agent-0 --chain base
 id-cli info agent-0.base.xid.eth
 id-cli info agent-0.sep.xid.eth
 id-cli info neo.agent-0.base.xid.eth
+
+# Linked .eth names resolve to the linked agent automatically
+id-cli info zeroperson.eth
+id-cli info treo.zeroperson.eth
+id-cli set-text zeroperson.eth description "My agent"
+id-cli records zeroperson.eth
 ```
 
 ## Dry Run
