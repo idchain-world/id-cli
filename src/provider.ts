@@ -15,5 +15,12 @@ export function getWallet(chainId: number): ethers.Wallet {
       ExitCode.AUTH_ERROR,
     );
   }
-  return new ethers.Wallet(pk, getProvider(chainId));
+  try {
+    return new ethers.Wallet(pk, getProvider(chainId));
+  } catch {
+    throw new CliError(
+      "Invalid PRIVATE_KEY format — must be a 64-character hex string (with or without 0x prefix).",
+      ExitCode.AUTH_ERROR,
+    );
+  }
 }
