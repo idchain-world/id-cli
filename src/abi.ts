@@ -25,8 +25,8 @@ export const REGISTRY_ABI = [
   "event TextChanged(bytes32 indexed node, string key, string value)",
   "event AddressChanged(bytes32 indexed node, uint256 coinType, bytes newAddress)",
   "event ContenthashChanged(bytes32 indexed node, bytes hash)",
-  "event Transfer(bytes32 indexed node, address owner)",
-  "event NewSubnodeOwner(bytes32 indexed node, string indexed label, address owner)",
+  "event TransferNode(bytes32 indexed node, address owner)",
+  "event NewSubnodeOwner(bytes32 indexed node, bytes32 indexed label, address owner, string labelString)",
 ];
 
 export const USDC_ABI = [

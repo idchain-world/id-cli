@@ -1,6 +1,6 @@
 {
   "name": "@xid/cli",
-  "version": "0.2.6",
+  "version": "0.2.7",
   "description": "CLI for ID Chain agent name registration and management",
   "type": "module",
   "bin": {
