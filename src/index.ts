@@ -22,7 +22,7 @@ const program = new Command();
 program
   .name("id-cli")
   .description("CLI for ID Chain agent name registration and management")
-  .version("0.2.8")
+  .version("0.2.9")
   .option("--dry-run", "Show transaction proposal without executing")
   .option("--output <format>", "Output format: human or json (default: auto-detect by TTY)");
 
