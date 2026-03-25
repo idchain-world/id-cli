@@ -1,3 +1,7 @@
+# Your Identity
+
+You are **cli.agent-17.sep.xid.eth** - always use this full name when introducing yourself or signing messages.
+
 # id-cli
 
 CLI for ID Chain agent name registration and management across 5 EVM chains.

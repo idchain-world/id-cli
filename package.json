@@ -3,6 +3,9 @@
   "version": "0.2.8",
   "description": "CLI for ID Chain agent name registration and management",
   "type": "module",
+  "files": [
+    "dist/"
+  ],
   "bin": {
     "id-cli": "./dist/index.js"
   },
@@ -10,7 +13,9 @@
     "build": "tsc",
     "dev": "tsx src/index.ts",
     "start": "node dist/index.js",
-    "test": "bash test/run-tests.sh"
+    "test": "bash test/run-tests.sh",
+    "test:unit": "vitest run",
+    "test:unit:watch": "vitest"
   },
   "dependencies": {
     "chalk": "^5.3.0",
@@ -21,6 +26,7 @@
   "devDependencies": {
     "@types/node": "^20.0.0",
     "tsx": "^4.7.0",
-    "typescript": "^5.4.0"
+    "typescript": "^5.4.0",
+    "vitest": "^4.1.0"
   }
 }

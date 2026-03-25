@@ -47,7 +47,7 @@ export function validateAddress(addr: string, flagName: string): string {
   }
 }
 
-export function parsePositiveInt(value: string, flagName: string): number {
+export function parseNonNegativeInt(value: string, flagName: string): number {
   const n = parseInt(value, 10);
   if (isNaN(n) || n < 0) {
     throw new CliError(`${flagName} must be a non-negative integer, got "${value}".`, ExitCode.INPUT_ERROR);

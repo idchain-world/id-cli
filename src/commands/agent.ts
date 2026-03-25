@@ -4,7 +4,7 @@ import chalk from "chalk";
 import { resolveChain, getChainConfig } from "../config.js";
 import { getWallet } from "../provider.js";
 import { IDENTITY_REGISTRY_ABI, REGISTRY_ABI } from "../abi.js";
-import { resolveNameAsync, isDryRun, proposeTx } from "../utils.js";
+import { resolveNameAsync, isDryRun, proposeTx, verifyOwnership } from "../utils.js";
 import { outputSuccess, handleErrorJson, humanLog, statusLog } from "../output.js";
 
 /**
@@ -138,6 +138,8 @@ export const registerAgentCommand = new Command("register-agent")
         const nameWallet = nameChainId !== registryChainId ? getWallet(nameChainId) : wallet;
         const nameRegistry = new ethers.Contract(nameConfig.ID_REGISTRY, REGISTRY_ABI, nameWallet);
 
+        await verifyOwnership(nameRegistry, resolved.node, nameWallet, resolved.domain);
+
         statusLog(chalk.dim(`\nSetting ENSIP-25 record on ${nameConfig.name}...`));
         statusLog(chalk.dim(`Key: ${ensip25Key}`));
         const linkTx = await nameRegistry.setText(resolved.node, ensip25Key, "1");
@@ -204,6 +206,8 @@ export const linkAgentCommand = new Command("link-agent")
       statusLog(chalk.dim(`Key: ${ensip25Key}`));
 
       const registry = new ethers.Contract(nameConfig.ID_REGISTRY, REGISTRY_ABI, wallet);
+      await verifyOwnership(registry, resolved.node, wallet, resolved.domain);
+
       const tx = await registry.setText(resolved.node, ensip25Key, "1");
       humanLog(`Tx: ${chalk.dim(tx.hash)}`);
       await tx.wait();

@@ -4,7 +4,7 @@ import chalk from "chalk";
 import { getChainConfig } from "../config.js";
 import { getWallet, getProvider } from "../provider.js";
 import { REGISTRY_ABI } from "../abi.js";
-import { resolveNameAsync, indexerFetch, isDryRun, proposeTx, parsePositiveInt, verifyOwnership } from "../utils.js";
+import { resolveNameAsync, indexerFetch, isDryRun, proposeTx, parseNonNegativeInt, verifyOwnership } from "../utils.js";
 import { outputSuccess, handleErrorJson, humanLog, statusLog } from "../output.js";
 
 export const recordsCommand = new Command("records")
@@ -131,7 +131,7 @@ export const setAddrCommand = new Command("set-addr")
     try {
       const resolved = await resolveNameAsync(name, opts.chain);
       const config = getChainConfig(resolved.chainId);
-      const coinType = parsePositiveInt(opts.coinType, "--coin-type");
+      const coinType = parseNonNegativeInt(opts.coinType, "--coin-type");
 
       if (isDryRun()) {
         if (coinType === 60) {

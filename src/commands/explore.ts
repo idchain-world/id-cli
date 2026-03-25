@@ -1,7 +1,7 @@
 import { Command } from "commander";
 import chalk from "chalk";
 import { resolveChain, getChainConfig, CHAIN_CONFIGS } from "../config.js";
-import { indexerFetch, CliError, ExitCode, parsePositiveInt } from "../utils.js";
+import { indexerFetch, CliError, ExitCode, parseNonNegativeInt } from "../utils.js";
 import { outputSuccess, handleErrorJson, humanLog } from "../output.js";
 
 // Root/parent nodes that aren't agent names
@@ -28,14 +28,16 @@ export const exploreCommand = new Command("explore")
       const config = chainId ? getChainConfig(chainId) : undefined;
 
       // Request extra to account for filtered entries
-      const requestLimit = parsePositiveInt(opts.limit, "--limit") + 50;
+      const limit = parseNonNegativeInt(opts.limit, "--limit");
+      const offset = parseNonNegativeInt(opts.offset, "--offset");
+      const requestLimit = limit + 50;
       let path: string;
       if (opts.owner) {
-        path = `/api/domains/by-owner/${opts.owner}?limit=${requestLimit}&offset=${opts.offset}`;
+        path = `/api/domains/by-owner/${opts.owner}?limit=${requestLimit}&offset=${offset}`;
       } else {
         const params = new URLSearchParams();
         params.set("limit", requestLimit.toString());
-        params.set("offset", opts.offset);
+        params.set("offset", offset.toString());
         if (opts.search) params.set("q", opts.search);
         if (filterByChain && chainId) params.set("chain", INDEXER_CHAINS[chainId] || "");
         path = `/api/domains?${params}`;
@@ -66,7 +68,6 @@ export const exploreCommand = new Command("explore")
         return true;
       });
 
-      const limit = parsePositiveInt(opts.limit, "--limit");
       const displayed = filtered.slice(0, limit);
 
       if (!displayed.length) {

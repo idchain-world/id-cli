@@ -10,13 +10,15 @@ npm run build
 npm link     # adds `id-cli` to your PATH
 ```
 
-Create a `.env` file in the project directory:
+Set your private key as an environment variable:
 
-```
-PRIVATE_KEY=0x...
+```bash
+export PRIVATE_KEY=0x...
 ```
 
 `PRIVATE_KEY` is required for write commands (register, transfer, set records, create subnames).
+
+> **Note:** A `.env` file also works but is less secure since the key persists on disk. Prefer `export` to keep the key in memory only.
 
 ## Supported Chains
 

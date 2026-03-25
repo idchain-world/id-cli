@@ -15,6 +15,7 @@ import { setRecordCommand } from "./commands/set-record.js";
 import { setReverseCommand } from "./commands/set-reverse.js";
 import { registerEnsCommand } from "./commands/register-ens.js";
 import { linkEnsCommand } from "./commands/link-ens.js";
+import { setHookCommand, getHooksCommand } from "./commands/hooks.js";
 
 const program = new Command();
 
@@ -41,6 +42,8 @@ program.addCommand(setAgentEndpointsCommand);
 program.addCommand(setReverseCommand);
 program.addCommand(registerEnsCommand);
 program.addCommand(linkEnsCommand);
+program.addCommand(setHookCommand);
+program.addCommand(getHooksCommand);
 program.addCommand(exploreCommand);
 program.addCommand(mintCommand);
 program.addCommand(schemaCommand);

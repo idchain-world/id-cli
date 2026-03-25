@@ -57,14 +57,14 @@ export function handleErrorJson(err: any): never {
   process.exit(exitCode);
 }
 
-/** Log to stderr in human mode (suppressed in JSON mode) */
+/** Log to stdout in human mode (suppressed in JSON mode) */
 export function humanLog(msg: string): void {
   if (!isJsonOutput()) {
     console.log(msg);
   }
 }
 
-/** Log to stderr always (for progress messages even in JSON mode) */
+/** Log to stdout in human mode, stderr in JSON mode (for progress messages) */
 export function statusLog(msg: string): void {
   if (!isJsonOutput()) {
     console.log(msg);

@@ -4,7 +4,7 @@ import chalk from "chalk";
 import { getChainConfig } from "../config.js";
 import { getWallet } from "../provider.js";
 import { REGISTRY_ABI } from "../abi.js";
-import { resolveNameAsync, indexerFetch, isDryRun, proposeTx, validateAddress, validateLabel, parsePositiveInt, verifyOwnership } from "../utils.js";
+import { resolveNameAsync, indexerFetch, isDryRun, proposeTx, validateAddress, validateLabel, parseNonNegativeInt, verifyOwnership } from "../utils.js";
 import { outputSuccess, handleErrorJson, humanLog, statusLog } from "../output.js";
 
 export const createSubnameCommand = new Command("create-subname")
@@ -69,8 +69,8 @@ export const listSubnamesCommand = new Command("list-subnames")
   .action(async (name, opts) => {
     try {
       const resolved = await resolveNameAsync(name, opts.chain);
-      const limit = parsePositiveInt(opts.limit, "--limit");
-      const offset = parsePositiveInt(opts.offset, "--offset");
+      const limit = parseNonNegativeInt(opts.limit, "--limit");
+      const offset = parseNonNegativeInt(opts.offset, "--offset");
 
       const res = await indexerFetch(`/api/domains?parent=${resolved.path}&chain=${resolved.chainId}&limit=${limit}&offset=${offset}`);
       if (!res.ok) {

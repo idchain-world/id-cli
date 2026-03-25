@@ -112,9 +112,7 @@ export function resolveChain(chain: string): number {
     c => c.shortName === chain.toLowerCase() || c.name.toLowerCase() === chain.toLowerCase()
   );
   if (byName) return byName.chainId;
-  // Also accept "sepolia" as alias for sep
-  if (chain.toLowerCase() === "sepolia") return 11155111;
-  const id = parseInt(chain);
-  if (CHAIN_CONFIGS[id]) return id;
+  const id = Number(chain);
+  if (!isNaN(id) && CHAIN_CONFIGS[id]) return id;
   throw new Error(`Unknown chain: ${chain}. Use: base, eth, op, arb, sep (sepolia)`);
 }

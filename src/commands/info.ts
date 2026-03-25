@@ -49,13 +49,24 @@ export const infoCommand = new Command("info")
       // Fetch records from indexer (public endpoint) unless --brief
       let textRecords: any[] = [];
       let addressRecords: any[] = [];
+      let dataRecords: any[] = [];
+      let contenthash: string | null = null;
       if (!opts.brief) {
         try {
           const res = await indexerFetch(`/api/domains/${resolved.node}/records`);
           if (res.ok) {
             const records = await res.json();
             textRecords = records.textRecords || [];
-            addressRecords = records.addressRecords || [];
+            dataRecords = records.dataRecords || [];
+            contenthash = (records.contenthash && records.contenthash !== "0x") ? records.contenthash : null;
+            // Deduplicate: exclude coinType 60 from indexer if it matches on-chain ethAddr
+            const allAddrRecords: any[] = records.addressRecords || [];
+            addressRecords = allAddrRecords.filter((r: any) => {
+              if (String(r.coinType) === "60" && ethAddr !== ethers.ZeroAddress) {
+                return r.address?.toLowerCase() !== ethAddr.toLowerCase();
+              }
+              return true;
+            });
             if (textRecords.length) {
               humanLog(chalk.dim("\n  Text Records:"));
               for (const r of textRecords) {
@@ -67,6 +78,15 @@ export const infoCommand = new Command("info")
               for (const r of addressRecords) {
                 humanLog(`    coin ${r.coinType}: ${r.address}`);
               }
+            }
+            if (dataRecords.length) {
+              humanLog(chalk.dim("\n  Data Records:"));
+              for (const r of dataRecords) {
+                humanLog(`    ${r.key}: ${r.value}`);
+              }
+            }
+            if (contenthash) {
+              humanLog(chalk.dim(`\n  Content hash: ${contenthash}`));
             }
           }
         } catch {
@@ -81,7 +101,7 @@ export const infoCommand = new Command("info")
         owner,
         locked: isLocked,
         ethAddress: ethAddr !== ethers.ZeroAddress ? ethAddr : null,
-        ...(opts.brief ? {} : { textRecords, addressRecords }),
+        ...(opts.brief ? {} : { textRecords, addressRecords, dataRecords, contenthash }),
       }, { chain: config.name, chainId: resolved.chainId });
     } catch (err: any) {
       handleErrorJson(err);
