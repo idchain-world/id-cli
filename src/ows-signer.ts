@@ -1,0 +1,128 @@
+/**
+ * OWS-backed ethers Signer
+ *
+ * Delegates transaction signing to `ows sign tx` / `ows sign send-tx`.
+ * The private key never leaves the OWS vault. Policies attached to the
+ * OWS API key (via OWS_PASSPHRASE) are enforced before signing.
+ *
+ * Usage:
+ *   const signer = new OwsSigner("idchain-registrar", provider);
+ *   const contract = new ethers.Contract(addr, abi, signer);
+ *   await contract.someMethod();  // signs via OWS
+ */
+
+import { ethers } from "ethers";
+import { execFileSync } from "child_process";
+
+/**
+ * Resolve the EVM address for an OWS wallet by parsing `ows wallet list`.
+ */
+function getOwsWalletAddress(walletName: string): string {
+  const output = execFileSync("ows", ["wallet", "list"], {
+    encoding: "utf8",
+    stdio: ["pipe", "pipe", "pipe"],
+    timeout: 10000,
+  });
+
+  let inWallet = false;
+  for (const line of output.split("\n")) {
+    if (line.includes("Name:") && line.includes(walletName)) {
+      inWallet = true;
+      continue;
+    }
+    if (inWallet && line.includes("Name:")) break;
+    if (inWallet) {
+      const match = line.trim().match(/^eip155:1\s.*→\s*(0x[0-9a-fA-F]+)/);
+      if (match) return ethers.getAddress(match[1]);
+    }
+  }
+  throw new Error(`OWS wallet "${walletName}" not found or has no EVM address`);
+}
+
+/**
+ * Map chain ID to CAIP-2 identifier for OWS.
+ */
+function chainIdToCaip2(chainId: number): string {
+  return `eip155:${chainId}`;
+}
+
+export class OwsSigner extends ethers.AbstractSigner {
+  private _walletName: string;
+  private _chainId: number;
+
+  /** Synchronous address — resolved eagerly at construction time. */
+  readonly address: string;
+
+  constructor(walletName: string, provider: ethers.Provider, chainId: number) {
+    super(provider);
+    this._walletName = walletName;
+    this._chainId = chainId;
+    // Resolve address eagerly so .address works synchronously like ethers.Wallet
+    this.address = getOwsWalletAddress(walletName);
+  }
+
+  async getAddress(): Promise<string> {
+    return this.address;
+  }
+
+  connect(provider: ethers.Provider): OwsSigner {
+    return new OwsSigner(this._walletName, provider, this._chainId);
+  }
+
+  async signTransaction(tx: ethers.TransactionLike): Promise<string> {
+    // Populate missing fields (nonce, gasLimit, etc.)
+    const populated = await this.populateTransaction(tx);
+
+    // Serialize as unsigned EIP-1559 or legacy transaction
+    const unsignedHex = ethers.Transaction.from(populated).unsignedSerialized;
+
+    // Build env with OWS_PASSPHRASE if set (for policy enforcement)
+    const env: Record<string, string> = { ...process.env } as Record<string, string>;
+
+    const args = [
+      "sign", "tx",
+      "--wallet", this._walletName,
+      "--chain", chainIdToCaip2(this._chainId),
+      "--tx", unsignedHex,
+    ];
+
+    const result = execFileSync("ows", args, {
+      encoding: "utf8",
+      env,
+      timeout: 30000,
+      stdio: ["pipe", "pipe", "pipe"],
+    }).trim();
+
+    return result;
+  }
+
+  async signMessage(message: string | Uint8Array): Promise<string> {
+    const msgHex = typeof message === "string"
+      ? ethers.hexlify(ethers.toUtf8Bytes(message))
+      : ethers.hexlify(message);
+
+    const env: Record<string, string> = { ...process.env } as Record<string, string>;
+
+    const result = execFileSync("ows", [
+      "sign", "message",
+      "--wallet", this._walletName,
+      "--chain", chainIdToCaip2(this._chainId),
+      "--message", msgHex,
+    ], {
+      encoding: "utf8",
+      env,
+      timeout: 30000,
+      stdio: ["pipe", "pipe", "pipe"],
+    }).trim();
+
+    return result;
+  }
+
+  async signTypedData(
+    _domain: ethers.TypedDataDomain,
+    _types: Record<string, ethers.TypedDataField[]>,
+    _value: Record<string, unknown>,
+  ): Promise<string> {
+    throw new Error("OWS signer does not support signTypedData yet");
+  }
+}

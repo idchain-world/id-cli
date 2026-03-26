@@ -22,9 +22,14 @@ const program = new Command();
 program
   .name("id-cli")
   .description("CLI for ID Chain agent name registration and management")
-  .version("0.2.10")
+  .version("0.2.12")
   .option("--dry-run", "Show transaction proposal without executing")
-  .option("--output <format>", "Output format: human or json (default: auto-detect by TTY)");
+  .option("--output <format>", "Output format: human or json (default: auto-detect by TTY)")
+  .option("--wallet <name>", "OWS wallet name for signing (alternative to PRIVATE_KEY)")
+  .hook("preAction", (thisCommand) => {
+    const wallet = thisCommand.opts().wallet;
+    if (wallet) process.env.OWS_WALLET = wallet;
+  });
 
 program.addCommand(registerCommand);
 program.addCommand(transferCommand);

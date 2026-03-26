@@ -58,7 +58,7 @@ export function parseNonNegativeInt(value: string, flagName: string): number {
 export async function verifyOwnership(
   registry: ethers.Contract,
   node: string,
-  wallet: ethers.Wallet,
+  wallet: { address: string },
   domain: string,
 ): Promise<void> {
   const currentOwner = await registry.owner(node);
@@ -212,7 +212,7 @@ export function formatUsdc(amount: bigint): string {
 }
 
 export async function signUsdcPermit(
-  wallet: ethers.Wallet,
+  wallet: ethers.Wallet | (ethers.AbstractSigner & { address: string }),
   usdc: ethers.Contract,
   spender: string,
   value: bigint,
