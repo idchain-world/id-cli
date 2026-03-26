@@ -6,6 +6,7 @@ import { getWallet, getProvider } from "../provider.js";
 import { REGISTRY_ABI } from "../abi.js";
 import { resolveNameAsync, indexerFetch, isDryRun, proposeTx, parseNonNegativeInt, verifyOwnership } from "../utils.js";
 import { outputSuccess, handleErrorJson, humanLog, statusLog } from "../output.js";
+import { encodeAddressToBytes } from "../address-encoding.js";
 
 export const recordsCommand = new Command("records")
   .description("Show all records for a name")
@@ -133,6 +134,8 @@ export const setAddrCommand = new Command("set-addr")
       const config = getChainConfig(resolved.chainId);
       const coinType = parseNonNegativeInt(opts.coinType, "--coin-type");
 
+      const addrBytes = encodeAddressToBytes(address, coinType);
+
       if (isDryRun()) {
         if (coinType === 60) {
           proposeTx({
@@ -145,7 +148,6 @@ export const setAddrCommand = new Command("set-addr")
             argLabels: ["node", "addr"],
           });
         } else {
-          const addrBytes = ethers.getBytes(address);
           proposeTx({
             action: `Set coin ${coinType} address on ${resolved.domain}`,
             chainId: resolved.chainId,
@@ -172,7 +174,6 @@ export const setAddrCommand = new Command("set-addr")
         outputSuccess({ domain: resolved.domain, coinType, address, txHash: tx.hash }, { chainId: resolved.chainId });
       } else {
         statusLog(chalk.dim(`Setting coin ${coinType} address on ${resolved.domain}...`));
-        const addrBytes = ethers.getBytes(address);
         const tx = await registry.getFunction("setAddr(bytes32,uint256,bytes)").send(resolved.node, coinType, addrBytes);
         humanLog(`Tx: ${chalk.dim(tx.hash)}`);
         await tx.wait();

@@ -6,6 +6,7 @@ import { getWallet } from "../provider.js";
 import { REGISTRY_ABI } from "../abi.js";
 import { resolveNameAsync, isDryRun, proposeTx, verifyOwnership, CliError, ExitCode } from "../utils.js";
 import { outputSuccess, handleErrorJson, humanLog, statusLog } from "../output.js";
+import { encodeAddressToBytes } from "../address-encoding.js";
 
 export const setRecordCommand = new Command("set-record")
   .description("Bulk update records in a single transaction via setRecord")
@@ -36,6 +37,7 @@ export const setRecordCommand = new Command("set-record")
       // Parse address records
       const coinTypes: bigint[] = [];
       const addresses: string[] = [];
+      const addrBytesEncoded: Uint8Array[] = [];
       if (opts.addr) {
         for (const pair of opts.addr) {
           const eq = pair.indexOf("=");
@@ -43,12 +45,9 @@ export const setRecordCommand = new Command("set-record")
           const ct = parseInt(pair.slice(0, eq), 10);
           if (isNaN(ct) || ct < 0) throw new CliError(`Invalid coin type: "${pair.slice(0, eq)}".`, ExitCode.INPUT_ERROR);
           coinTypes.push(BigInt(ct));
-          if (ct === 60) {
-            // ETH address — encode as 20-byte packed
-            addresses.push(ethers.getAddress(pair.slice(eq + 1)));
-          } else {
-            addresses.push(pair.slice(eq + 1));
-          }
+          const addrStr = pair.slice(eq + 1);
+          addresses.push(addrStr);
+          addrBytesEncoded.push(encodeAddressToBytes(addrStr, ct));
         }
       }
 
@@ -71,13 +70,8 @@ export const setRecordCommand = new Command("set-record")
         throw new CliError("No records specified. Use --text, --addr, --contenthash, or --data.", ExitCode.INPUT_ERROR);
       }
 
-      // For setRecord, addresses need to be bytes-encoded
-      const addrBytes = addresses.map((addr, i) => {
-        if (coinTypes[i] === 60n) {
-          return ethers.getBytes(ethers.zeroPadValue(addr, 20));
-        }
-        return ethers.getBytes(addr);
-      });
+      // Addresses already encoded to bytes during parsing
+      const addrBytes = addrBytesEncoded;
 
       const dataValueBytes = dataValues.map((v) => ethers.getBytes(v));
 
