@@ -298,7 +298,7 @@ export function proposeTx(p: TxProposal): void {
     const val = p.args[i];
     let display: string;
     if (typeof val === "bigint") display = val.toString();
-    else if (Array.isArray(val)) display = val.length ? JSON.stringify(val) : "[]";
+    else if (Array.isArray(val)) display = val.length ? JSON.stringify(val, (_, v) => typeof v === "bigint" ? v.toString() : v) : "[]";
     else display = String(val);
     console.log(`    ${p.argLabels[i].padEnd(16)} ${display}`);
   }

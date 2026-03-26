@@ -1,4 +1,4 @@
-import { bech32, bech32m, base58check, base64url, base32 } from "@scure/base";
+import { bech32, bech32m, base58check, base64url, base32nopad } from "@scure/base";
 import { ethers } from "ethers";
 
 function sha256(data: Uint8Array): Uint8Array {
@@ -142,7 +142,7 @@ function decodeFilecoinAddress(address: string): Uint8Array {
     case 2: {
       // secp256k1 (f1) or Actor (f2): protocol byte + 20-byte hash
       // Payload is base32 lowercase (no padding) of hash + 4-byte checksum
-      const decoded = base32.decode(payload.toUpperCase());
+      const decoded = base32nopad.decode(payload.toUpperCase());
       const hash = decoded.subarray(0, decoded.length - 4); // remove checksum
       const result = new Uint8Array(1 + hash.length);
       result[0] = protocol;
@@ -151,7 +151,7 @@ function decodeFilecoinAddress(address: string): Uint8Array {
     }
     case 3: {
       // BLS (f3): protocol byte + 48-byte public key
-      const decoded = base32.decode(payload.toUpperCase());
+      const decoded = base32nopad.decode(payload.toUpperCase());
       const pubkey = decoded.subarray(0, decoded.length - 4);
       const result = new Uint8Array(1 + pubkey.length);
       result[0] = 3;
@@ -167,7 +167,7 @@ function decodeFilecoinAddress(address: string): Uint8Array {
       const subPayload = payload.slice(fIdx + 1);
       const namespaceLeb = encodeLeb128(namespace);
 
-      const decoded = base32.decode(subPayload.toUpperCase());
+      const decoded = base32nopad.decode(subPayload.toUpperCase());
       const subAddr = decoded.subarray(0, decoded.length - 4);
 
       const result = new Uint8Array(1 + namespaceLeb.length + subAddr.length);
