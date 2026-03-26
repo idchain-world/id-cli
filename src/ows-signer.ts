@@ -73,27 +73,36 @@ export class OwsSigner extends ethers.AbstractSigner {
     // Populate missing fields (nonce, gasLimit, etc.)
     const populated = await this.populateTransaction(tx);
 
-    // Serialize as unsigned EIP-1559 or legacy transaction
-    const unsignedHex = ethers.Transaction.from(populated).unsignedSerialized;
+    // Strip 'from' — ethers won't serialize unsigned tx with a from field
+    const { from: _, ...txWithoutFrom } = populated;
 
-    // Build env with OWS_PASSPHRASE if set (for policy enforcement)
+    // Build the transaction object for serialization
+    const txObj = ethers.Transaction.from(txWithoutFrom);
+    const unsignedHex = txObj.unsignedSerialized;
+
+    // Sign via OWS — returns raw signature bytes (r || s || v) without 0x prefix
     const env: Record<string, string> = { ...process.env } as Record<string, string>;
-
-    const args = [
+    const sigHex = execFileSync("ows", [
       "sign", "tx",
       "--wallet", this._walletName,
       "--chain", chainIdToCaip2(this._chainId),
       "--tx", unsignedHex,
-    ];
-
-    const result = execFileSync("ows", args, {
+    ], {
       encoding: "utf8",
       env,
       timeout: 30000,
       stdio: ["pipe", "pipe", "pipe"],
     }).trim();
 
-    return result;
+    // Parse signature: 64 bytes r + 32 bytes s + 1 byte v = 65 bytes = 130 hex chars
+    const sigBytes = sigHex.startsWith("0x") ? sigHex : `0x${sigHex}`;
+    const r = sigBytes.slice(0, 66);         // 0x + 64 chars
+    const s = `0x${sigBytes.slice(66, 130)}`;
+    const v = parseInt(sigBytes.slice(130, 132), 16);
+
+    // Reconstruct signed transaction
+    txObj.signature = ethers.Signature.from({ r, s, v: v < 27 ? v + 27 : v });
+    return txObj.serialized;
   }
 
   async signMessage(message: string | Uint8Array): Promise<string> {
