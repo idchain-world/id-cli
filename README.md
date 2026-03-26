@@ -10,15 +10,27 @@ npm run build
 npm link     # adds `id-cli` to your PATH
 ```
 
-Set your private key as an environment variable:
+### Signing
+
+Write commands (register, transfer, set records, create subnames) require a signer. Two options:
+
+**Option 1: OWS wallet (recommended)** — private key stays encrypted in the [OWS](https://github.com/open-wallet-standard/core) vault:
+
+```bash
+id-cli register --chain sepolia --wallet my-wallet
+# Or via env var:
+export OWS_WALLET=my-wallet
+```
+
+OWS policies can restrict which chains and contracts the wallet can interact with. Set `OWS_PASSPHRASE` to an API key for scoped access with policy enforcement.
+
+**Option 2: Raw private key:**
 
 ```bash
 export PRIVATE_KEY=0x...
 ```
 
-`PRIVATE_KEY` is required for write commands (register, transfer, set records, create subnames).
-
-> **Note:** A `.env` file also works but is less secure since the key persists on disk. Prefer `export` to keep the key in memory only.
+> **Note:** A `.env` file also works but is less secure since the key persists on disk. Prefer OWS or `export` to keep the key out of files.
 
 ## Supported Chains
 
@@ -359,7 +371,9 @@ id-cli schema set-agent-endpoints
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `PRIVATE_KEY` | For writes | Wallet private key (with 0x prefix) |
+| `OWS_WALLET` | For writes | OWS wallet name (alternative to PRIVATE_KEY — key stays in vault) |
+| `OWS_PASSPHRASE` | No | OWS API key for scoped access with policy enforcement |
+| `PRIVATE_KEY` | For writes | Wallet private key with 0x prefix (fallback if OWS not used) |
 | `RPC_URL_BASE` | No | Custom RPC for Base |
 | `RPC_URL_ETH` | No | Custom RPC for Ethereum |
 | `RPC_URL_OP` | No | Custom RPC for Optimism |
