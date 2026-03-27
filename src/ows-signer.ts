@@ -128,10 +128,53 @@ export class OwsSigner extends ethers.AbstractSigner {
   }
 
   async signTypedData(
-    _domain: ethers.TypedDataDomain,
-    _types: Record<string, ethers.TypedDataField[]>,
-    _value: Record<string, unknown>,
+    domain: ethers.TypedDataDomain,
+    types: Record<string, ethers.TypedDataField[]>,
+    value: Record<string, unknown>,
   ): Promise<string> {
-    throw new Error("OWS signer does not support signTypedData yet");
+    // Build EIP-712 typed data JSON for OWS
+    const typedData = JSON.stringify({
+      types: {
+        EIP712Domain: [
+          ...(domain.name !== undefined ? [{ name: "name", type: "string" }] : []),
+          ...(domain.version !== undefined ? [{ name: "version", type: "string" }] : []),
+          ...(domain.chainId !== undefined ? [{ name: "chainId", type: "uint256" }] : []),
+          ...(domain.verifyingContract !== undefined ? [{ name: "verifyingContract", type: "address" }] : []),
+          ...(domain.salt !== undefined ? [{ name: "salt", type: "bytes32" }] : []),
+        ],
+        ...types,
+      },
+      primaryType: Object.keys(types)[0],
+      domain: {
+        ...(domain.name !== undefined && { name: domain.name }),
+        ...(domain.version !== undefined && { version: domain.version }),
+        ...(domain.chainId !== undefined && { chainId: String(domain.chainId) }),
+        ...(domain.verifyingContract !== undefined && { verifyingContract: domain.verifyingContract }),
+        ...(domain.salt !== undefined && { salt: domain.salt }),
+      },
+      message: Object.fromEntries(
+        Object.entries(value).map(([k, v]) => [k, typeof v === "bigint" ? String(v) : v])
+      ),
+    });
+
+    const env: Record<string, string> = { ...process.env } as Record<string, string>;
+
+    const result = execFileSync("ows", [
+      "sign", "message",
+      "--wallet", this._walletName,
+      "--chain", chainIdToCaip2(this._chainId),
+      "--message", "dummy",
+      "--typed-data", typedData,
+      "--json",
+    ], {
+      encoding: "utf8",
+      env,
+      timeout: 30000,
+      stdio: ["pipe", "pipe", "pipe"],
+    }).trim();
+
+    const parsed = JSON.parse(result);
+    const sig = parsed.signature.startsWith("0x") ? parsed.signature : `0x${parsed.signature}`;
+    return sig;
   }
 }
