@@ -48,7 +48,7 @@ export const REVERSE_REGISTRAR_ABI = [
   "function setNameForAddr(address addr, string name) returns (bytes32)",
 ];
 
-// ENS core contracts (L1 / Sepolia)
+// ENS core contracts (L1)
 export const ENS_REGISTRY_ABI = [
   "function resolver(bytes32 node) view returns (address)",
   "function owner(bytes32 node) view returns (address)",
