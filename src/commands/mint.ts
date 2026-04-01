@@ -1,29 +1,26 @@
 import { Command } from "commander";
 import { ethers } from "ethers";
 import chalk from "chalk";
-import { resolveChain, getChainConfig } from "../config.js";
+import { getConfig } from "../config.js";
 import { getWallet } from "../provider.js";
 import { USDC_ABI } from "../abi.js";
 import { formatUsdc, isDryRun, proposeTx } from "../utils.js";
 import { outputSuccess, handleErrorJson, humanLog, statusLog } from "../output.js";
 
 export const mintCommand = new Command("mint-usdc")
-  .description("Mint test USDC (testnet only)")
-  .option("-c, --chain <chain>", "Chain", "sepolia")
+  .description("Mint test USDC")
   .option("-a, --amount <amount>", "Amount in USDC", "100")
   .option("--dry-run", "Show transaction proposal without executing")
   .action(async (opts) => {
     try {
-      const chainId = resolveChain(opts.chain);
-      const config = getChainConfig(chainId);
-      const wallet = getWallet(chainId);
+      const config = getConfig();
+      const wallet = getWallet();
 
       const amount = ethers.parseUnits(opts.amount, 6);
 
       if (isDryRun()) {
         proposeTx({
           action: `Mint ${opts.amount} USDC`,
-          chainId,
           contractName: "MockUSDC",
           contractAddress: config.MOCK_USDC,
           functionAbi: "function mint(address to, uint256 amount)",
@@ -46,7 +43,7 @@ export const mintCommand = new Command("mint-usdc")
         amount: opts.amount,
         txHash: tx.hash,
         balance: { raw: balance.toString(), formatted: formatUsdc(balance) },
-      }, { chain: config.name, chainId });
+      });
     } catch (err: any) {
       handleErrorJson(err);
     }

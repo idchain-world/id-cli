@@ -1,6 +1,6 @@
 # id-cli
 
-CLI for ID Chain agent name registration and management. All the features of [idchain.world](https://idchain.world), from your terminal.
+CLI for ID Chain agent name registration and management on Base. All the features of [idchain.world](https://idchain.world), from your terminal.
 
 ## Setup
 
@@ -17,7 +17,7 @@ Write commands (register, transfer, set records, create subnames) require a sign
 **Option 1: OWS wallet (recommended)** — private key stays encrypted in the [OWS](https://github.com/open-wallet-standard/core) vault:
 
 ```bash
-id-cli register --chain sepolia --wallet my-wallet
+id-cli register --wallet my-wallet
 # Or via env var:
 export OWS_WALLET=my-wallet
 ```
@@ -32,33 +32,17 @@ export PRIVATE_KEY=0x...
 
 > **Note:** A `.env` file also works but is less secure since the key persists on disk. Prefer OWS or `export` to keep the key out of files.
 
-## Supported Chains
-
-All commands accept `--chain` (or `-c`). Defaults to `base`.
-
-| Flag | Chain |
-|------|-------|
-| `base` | Base (8453) |
-| `eth`, `ethereum` | Ethereum (1) |
-| `op`, `optimism` | Optimism (10) |
-| `arb`, `arbitrum` | Arbitrum (42161) |
-| `sep`, `sepolia` | Sepolia (11155111) |
-
-You can also pass the numeric chain ID directly: `--chain 8453`.
-
 ## Full Domain Paths
 
 All commands accept a short label, a full domain path, or a linked .eth name:
 
 ```bash
-id-cli info agent-0 --chain base
-id-cli info agent-0.base.xid.eth
-id-cli info agent-0.sep.xid.eth
-id-cli info neo.agent-0.base.xid.eth
+id-cli info agent-0
+id-cli info agent-0.xid.eth
+id-cli info neo.agent-0.xid.eth
 
 # Linked .eth names resolve to the linked agent automatically
 id-cli info zeroperson.eth
-id-cli info treo.zeroperson.eth
 id-cli set-text zeroperson.eth description "My agent"
 id-cli records zeroperson.eth
 ```
@@ -68,7 +52,7 @@ id-cli records zeroperson.eth
 Add `--dry-run` to any write command to see the transaction proposal (contract, function, arguments, calldata) without executing.
 
 ```bash
-id-cli register --chain base --dry-run
+id-cli register --dry-run
 id-cli transfer agent-0 --to 0x1234... --dry-run
 id-cli set-text agent-0 description "hello" --dry-run
 ```
@@ -88,7 +72,7 @@ When stdout is not a TTY (e.g., piped), JSON is the default. The envelope format
 {
   "status": "ok",
   "data": { ... },
-  "metadata": { "chain": "Base", "chainId": 8453 }
+  "metadata": {}
 }
 ```
 
@@ -110,10 +94,9 @@ Register the next available agent name. Names are permanent (one-time $3.50 USDC
 
 ```bash
 id-cli register
-id-cli register --chain sepolia
 id-cli register --text description="My agent" --text url="https://example.com"
 id-cli register --address 0x1234...
-id-cli register --sublabel neo    # creates neo.<next-label>.base.xid.eth
+id-cli register --sublabel neo    # creates neo.<next-label>.xid.eth
 id-cli register --referrer 0x...  # referrer gets 10% fee share
 ```
 
@@ -123,7 +106,7 @@ Transfer ownership of a name.
 
 ```bash
 id-cli transfer agent-0 --to 0x1234...
-id-cli transfer agent-0.op.xid.eth --to 0x1234...
+id-cli transfer agent-0.xid.eth --to 0x1234...
 ```
 
 ### Info
@@ -132,8 +115,7 @@ Show details for a registered name, including owner, lock status, and records.
 
 ```bash
 id-cli info agent-0
-id-cli info agent-7 --chain base
-id-cli info neo.agent-0.base.xid.eth
+id-cli info neo.agent-0.xid.eth
 id-cli info agent-0 --brief              # skip records, just owner + lock status
 ```
 
@@ -143,7 +125,6 @@ View all records for a name.
 
 ```bash
 id-cli records agent-0
-id-cli records agent-0 --chain op
 id-cli records agent-0 --select text           # only text records
 id-cli records agent-0 --select text,address   # text + address records
 ```
@@ -174,28 +155,21 @@ id-cli set-contenthash agent-0 0xe301...
 
 ### Set Reverse Name (ENSIP-19)
 
-Set the reverse resolution for your wallet address using the ENS Reverse Registrar. Supports the default L1 fallback reverse (`reverse`), Ethereum-specific reverse (`addr.reverse`), and chain-specific reverses per ENSIP-19.
+Set the reverse resolution for your wallet address using the ENS Reverse Registrar.
 
 ```bash
-# Default fallback reverse (L1 "reverse" namespace) — uses 0x283F...
-id-cli set-reverse agent-0.base.xid.eth
-id-cli set-reverse agent-0.base.xid.eth DEFAULT
+# Default fallback reverse (L1 "reverse" namespace)
+id-cli set-reverse agent-0.xid.eth
+id-cli set-reverse agent-0.xid.eth DEFAULT
 
-# Ethereum-specific reverse (L1 "addr.reverse" namespace) — uses 0xa58E...
-id-cli set-reverse agent-0.base.xid.eth ETH
-
-# Chain-specific reverse — calls setName() on that chain's reverse registrar
-id-cli set-reverse agent-0.base.xid.eth BASE
-id-cli set-reverse agent-0.op.xid.eth OP
-id-cli set-reverse agent-0.arb.xid.eth ARB
+# Base-specific reverse
+id-cli set-reverse agent-0.xid.eth BASE
 
 # Set reverse for a specific address (e.g., a contract you own)
-id-cli set-reverse agent-0.base.xid.eth BASE --addr 0x1234...
+id-cli set-reverse agent-0.xid.eth BASE --addr 0x1234...
 ```
 
-Targets: `DEFAULT` (L1 fallback), `ETH` (L1 addr.reverse), `BASE`, `OP`, `ARB`, `SEP`.
-
-Uses `setName(string)` on the ENS Reverse Registrar for your wallet, or `setNameForAddr(address, string)` with `--addr`.
+Targets: `DEFAULT` (L1 fallback), `BASE`.
 
 ### Set Agent Endpoints (ENSIP-26)
 
@@ -241,7 +215,7 @@ Create a subname under an agent. Useful for building swarms where each worker ge
 
 ```bash
 id-cli create-subname neo --parent agent-0
-id-cli create-subname worker-1 --parent agent-0 --chain base
+id-cli create-subname worker-1 --parent agent-0
 id-cli create-subname scout --parent agent-0 --owner 0x1234...
 ```
 
@@ -249,20 +223,16 @@ id-cli create-subname scout --parent agent-0 --owner 0x1234...
 
 ```bash
 id-cli list-subnames agent-0
-id-cli list-subnames agent-0.base.xid.eth
+id-cli list-subnames agent-0.xid.eth
 id-cli list-subnames agent-0 --limit 100 --offset 50
 ```
 
 ### Register ENS Name
 
-Register a .eth name via the ENS two-step commit/reveal process. Requires ETH for the registration fee.
+Register a .eth name via the ENS two-step commit/reveal process on Ethereum L1. Requires ETH for the registration fee.
 
 ```bash
-# Register on mainnet ENS (default for all chains except Sepolia)
 id-cli register-ens alice
-
-# Register on Sepolia ENS
-id-cli register-ens alice --chain sepolia
 
 # Custom duration (default: 1 year = 31536000 seconds)
 id-cli register-ens alice --duration 63072000   # 2 years
@@ -274,35 +244,27 @@ id-cli register-ens alice --owner 0x1234...
 ### Link ENS Name
 
 Link an existing .eth name to an agent ID. This is a three-step process:
-1. **Back-link**: Set `ens-link[name.eth]` = "true" on the agent (agent's chain)
-2. **Forward link**: Call `setLink()` on the linking resolver (L1/Sepolia)
-3. **Set resolver**: Point the .eth name's resolver to the linking resolver (L1/Sepolia)
+1. **Back-link**: Set `ens-link[name.eth]` = "true" on the agent (Base)
+2. **Forward link**: Call `setLink()` on the IDUnifiedResolver (L1)
+3. **Set resolver**: Point the .eth name's resolver to the IDUnifiedResolver (L1)
 
 ```bash
-# Link alice.eth to a Base agent (all 3 steps)
-id-cli link-ens alice.eth agent-0.base.xid.eth
-
-# Link to an L1 Ethereum agent
-id-cli link-ens alice.eth agent-0.eth.xid.eth
-
-# Link to a Sepolia agent
-id-cli link-ens alice.eth agent-0.sep.xid.eth
+# Link alice.eth to an agent (all 3 steps)
+id-cli link-ens alice.eth agent-0.xid.eth
 
 # Run a single step (useful if some steps are already done)
-id-cli link-ens alice.eth agent-0.base.xid.eth --step 1   # back-link only
-id-cli link-ens alice.eth agent-0.base.xid.eth --step 2   # forward link only
-id-cli link-ens alice.eth agent-0.base.xid.eth --step 3   # set resolver only
+id-cli link-ens alice.eth agent-0.xid.eth --step 1   # back-link only
+id-cli link-ens alice.eth agent-0.xid.eth --step 2   # forward link only
+id-cli link-ens alice.eth agent-0.xid.eth --step 3   # set resolver only
 ```
-
-For L1 agents (eth/sep), uses **IDLinkedResolver** (on-chain). For L2 agents (base/op/arb), uses **IDUnifiedResolver** (CCIP-Read).
 
 ### Register Agent (ERC-8004)
 
 Register on the ERC-8004 IdentityRegistry.
 
 ```bash
-id-cli register-agent agent-0 --chain base
-id-cli register-agent agent-0 --chain base --link   # also set ENSIP-25 record
+id-cli register-agent agent-0
+id-cli register-agent agent-0 --link   # also set ENSIP-25 record
 id-cli register-agent agent-0 --mcp https://mcp.example.com
 ```
 
@@ -311,7 +273,7 @@ id-cli register-agent agent-0 --mcp https://mcp.example.com
 Link an ERC-8004 agent to a name via ENSIP-25.
 
 ```bash
-id-cli link-agent agent-0 12345 --chain base
+id-cli link-agent agent-0 12345
 ```
 
 ### Explore
@@ -320,17 +282,17 @@ List registered agent names.
 
 ```bash
 id-cli explore
-id-cli explore --chain op --limit 50
+id-cli explore --limit 50
 id-cli explore --owner 0x1234...
 ```
 
 ### Mint USDC
 
-Mint test USDC on testnets.
+Mint test USDC.
 
 ```bash
 id-cli mint-usdc
-id-cli mint-usdc --chain sepolia --amount 1000
+id-cli mint-usdc --amount 1000
 ```
 
 ## Examples
@@ -375,22 +337,19 @@ id-cli schema set-agent-endpoints
 | `OWS_PASSPHRASE` | No | OWS API key for scoped access with policy enforcement |
 | `PRIVATE_KEY` | For writes | Wallet private key with 0x prefix (fallback if OWS not used) |
 | `RPC_URL_BASE` | No | Custom RPC for Base |
-| `RPC_URL_ETH` | No | Custom RPC for Ethereum |
-| `RPC_URL_OP` | No | Custom RPC for Optimism |
-| `RPC_URL_ARB` | No | Custom RPC for Arbitrum |
-| `RPC_URL_SEPOLIA` | No | Custom RPC for Sepolia |
-| `RPC_URL` | No | Global RPC override (applies to all chains) |
+| `RPC_URL` | No | Global RPC override |
+| `RPC_URL_ETH` | No | Custom RPC for Ethereum L1 (used by register-ens, link-ens) |
 | `INDEXER_URL` | No | Override the default indexer API URL |
 | `INDEXER_API_KEY` | No | API key for protected indexer endpoints (explore, by-owner) |
 
 ### RPC Configuration
 
-The CLI ships with public RPC endpoints for each chain. These work for most use cases but may be rate-limited under heavy use. To use your own RPC provider, set the per-chain env var:
+The CLI ships with a public RPC endpoint for Base. To use your own RPC provider:
 
 ```bash
-# In your .env file
 RPC_URL_BASE=https://base-mainnet.g.alchemy.com/v2/YOUR_KEY
-RPC_URL_ETH=https://eth-mainnet.g.alchemy.com/v2/YOUR_KEY
 ```
 
-Per-chain variables take priority over `RPC_URL`. If neither is set, the built-in public endpoint is used.
+`RPC_URL_BASE` takes priority over `RPC_URL`. If neither is set, the built-in public endpoint is used.
+
+For ENS commands (`register-ens`, `link-ens`), set `RPC_URL_ETH` for a custom Ethereum L1 endpoint.

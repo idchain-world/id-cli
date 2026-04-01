@@ -1,13 +1,12 @@
 import { Command } from "commander";
 import { ethers } from "ethers";
 import chalk from "chalk";
-import { getChainConfig } from "../config.js";
-import { getProvider, getWallet } from "../provider.js";
+import { getConfig, CHAIN_ID } from "../config.js";
+import { getWallet } from "../provider.js";
 import {
   REGISTRY_ABI,
   ENS_REGISTRY_ABI,
   ENS_NAME_WRAPPER_ABI,
-  ID_LINKED_RESOLVER_ABI,
   ID_UNIFIED_RESOLVER_ABI,
 } from "../abi.js";
 import { resolveNameAsync, isDryRun, proposeTx, CliError, ExitCode, labelhash } from "../utils.js";
@@ -17,42 +16,11 @@ import { outputSuccess, handleErrorJson, humanLog, statusLog } from "../output.j
 
 const ENS_REGISTRY = "0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e";
 
-const ENS_NAME_WRAPPER: Record<number, string> = {
-  1:        "0xD4416b13d2b3a9aBae7AcD5D6C2BbDBE25686401",
-  11155111: "0x0635513f179D50A207757E05759CbD106d7dFcE8",
-};
+const ENS_NAME_WRAPPER_ADDR = "0xD4416b13d2b3a9aBae7AcD5D6C2BbDBE25686401";
 
-// Linking resolver addresses
-const ENS_LINKING_RESOLVERS = {
-  LINKED_MAINNET:  "0x104f0C0D2763334430C44585a7f97AcdE67ad2D1",
-  LINKED_SEPOLIA:  "0x94C474694EEf58181b834300f54a9F225FCc67c9",
-  UNIFIED_MAINNET: "0xf4606833A389e8394b8c5ce1B3DeEB9f0B4c7F1a",
-};
-
-interface LinkingConfig {
-  resolverAddress: string;
-  resolverChainId: number;
-  type: "linked" | "unified";
-}
-
-function getEnsLinkingConfig(agentChainId: number): LinkingConfig {
-  switch (agentChainId) {
-    case 1:
-      return { resolverAddress: ENS_LINKING_RESOLVERS.LINKED_MAINNET, resolverChainId: 1, type: "linked" };
-    case 11155111:
-      return { resolverAddress: ENS_LINKING_RESOLVERS.LINKED_SEPOLIA, resolverChainId: 11155111, type: "linked" };
-    case 8453:
-    case 10:
-    case 42161:
-      return { resolverAddress: ENS_LINKING_RESOLVERS.UNIFIED_MAINNET, resolverChainId: 1, type: "unified" };
-    default:
-      throw new CliError(`ENS linking not supported for chain ${agentChainId}.`, ExitCode.INPUT_ERROR);
-  }
-}
-
-function getRegistryChainId(agentChainId: number): number {
-  return agentChainId === 11155111 ? 11155111 : 1;
-}
+// Base agents use the unified resolver on mainnet (CCIP-Read)
+const UNIFIED_RESOLVER = "0xf4606833A389e8394b8c5ce1B3DeEB9f0B4c7F1a";
+const RESOLVER_CHAIN_ID = 1; // Resolver lives on L1
 
 function ensNamehash(name: string): string {
   let node = ethers.ZeroHash;
@@ -70,17 +38,15 @@ function ensNamehash(name: string): string {
 
 async function checkEnsOwnership(
   ensNameNode: string,
-  registryChainId: number,
+  provider: ethers.Provider,
 ): Promise<{ owner: string | null; isWrapped: boolean }> {
-  const provider = getProvider(registryChainId);
   const registry = new ethers.Contract(ENS_REGISTRY, ENS_REGISTRY_ABI, provider);
   let ownerAddr = await registry.owner(ensNameNode);
 
-  const nameWrapperAddr = ENS_NAME_WRAPPER[registryChainId];
   let isWrapped = false;
-  if (nameWrapperAddr && ownerAddr.toLowerCase() === nameWrapperAddr.toLowerCase()) {
+  if (ownerAddr.toLowerCase() === ENS_NAME_WRAPPER_ADDR.toLowerCase()) {
     isWrapped = true;
-    const wrapper = new ethers.Contract(nameWrapperAddr, ENS_NAME_WRAPPER_ABI, provider);
+    const wrapper = new ethers.Contract(ENS_NAME_WRAPPER_ADDR, ENS_NAME_WRAPPER_ABI, provider);
     ownerAddr = await wrapper.ownerOf(ensNameNode);
   }
 
@@ -93,7 +59,7 @@ async function checkEnsOwnership(
 export const linkEnsCommand = new Command("link-ens")
   .description("Link a .eth name to an agent ID (forward link + back-link + resolver)")
   .argument("<ens-name>", "ENS name to link (e.g., alice.eth)")
-  .argument("<agent-name>", "Agent name to link to (e.g., agent-0.base.xid.eth)")
+  .argument("<agent-name>", "Agent name to link to (e.g., agent-0.xid.eth)")
   .option("--step <step>", "Run only a specific step: 1 (back-link), 2 (forward-link), 3 (resolver)")
   .option("--dry-run", "Show transaction proposal without executing")
   .action(async (ensName, agentName, opts) => {
@@ -110,38 +76,31 @@ export const linkEnsCommand = new Command("link-ens")
 
       // Resolve agent name
       const resolved = await resolveNameAsync(agentName);
-      const agentConfig = getChainConfig(resolved.chainId);
-      const linkingConfig = getEnsLinkingConfig(resolved.chainId);
-      const registryChainId = getRegistryChainId(resolved.chainId);
+      const agentConfig = getConfig();
 
       const ensNameNode = ensNamehash(ensName);
       const agentNode = resolved.node;
 
-      const chainLabel = registryChainId === 11155111 ? "Sepolia" : "Ethereum";
-      const agentChainLabel = agentConfig.name;
-
       humanLog(chalk.bold("Link ENS Name"));
       humanLog(`  ENS name:   ${chalk.bold(ensName)}`);
       humanLog(`  Agent:      ${chalk.bold(resolved.domain)}`);
-      humanLog(`  Agent chain: ${agentChainLabel} (${resolved.chainId})`);
-      humanLog(`  Resolver:   ${linkingConfig.type === "linked" ? "IDLinkedResolver" : "IDUnifiedResolver"}`);
-      humanLog(`             ${linkingConfig.resolverAddress}`);
+      humanLog(`  Resolver:   IDUnifiedResolver`);
+      humanLog(`             ${UNIFIED_RESOLVER}`);
       humanLog("");
 
       const stepFilter = opts.step ? parseInt(opts.step, 10) : null;
 
-      // ── Step 1: Set back-link on agent's chain ──────────────────────────
+      // ── Step 1: Set back-link on Base ──────────────────────────────────
 
       if (!stepFilter || stepFilter === 1) {
         humanLog(chalk.bold("Step 1: Set back-link on agent"));
-        humanLog(chalk.dim(`  Sets ens-link[${ensName}] = "true" on ${agentChainLabel}`));
+        humanLog(chalk.dim(`  Sets ens-link[${ensName}] = "true" on Base`));
 
         const backLinkKey = `ens-link[${ensName}]`;
 
         if (isDryRun()) {
           proposeTx({
             action: `Set back-link: ens-link[${ensName}] = "true"`,
-            chainId: resolved.chainId,
             contractName: "IDRegistry",
             contractAddress: agentConfig.ID_REGISTRY,
             functionAbi: "function setText(bytes32 node, string key, string value)",
@@ -153,7 +112,7 @@ export const linkEnsCommand = new Command("link-ens")
             ],
           });
         } else {
-          const wallet = getWallet(resolved.chainId);
+          const wallet = getWallet();
           const registry = new ethers.Contract(agentConfig.ID_REGISTRY, REGISTRY_ABI, wallet);
 
           // Check if back-link already set
@@ -171,97 +130,83 @@ export const linkEnsCommand = new Command("link-ens")
         humanLog("");
       }
 
-      // ── Step 2: Set forward link on resolver (L1/Sepolia) ─────────────
+      // ── Step 2: Set forward link on resolver (L1) ────────────────────
 
       if (!stepFilter || stepFilter === 2) {
         humanLog(chalk.bold("Step 2: Set forward link on resolver"));
-        humanLog(chalk.dim(`  Links ${ensName} → ${resolved.domain} on ${chainLabel}`));
+        humanLog(chalk.dim(`  Links ${ensName} → ${resolved.domain} on Ethereum`));
 
         if (isDryRun()) {
-          if (linkingConfig.type === "linked") {
-            proposeTx({
-              action: `Set forward link: ${ensName} → ${resolved.domain}`,
-              chainId: linkingConfig.resolverChainId,
-              contractName: "IDLinkedResolver",
-              contractAddress: linkingConfig.resolverAddress,
-              functionAbi: "function setLink(bytes32 ensNode, bytes32 agentNode)",
-              args: [ensNameNode, agentNode],
-              argLabels: ["ensNode", "agentNode"],
-              notes: [
-                `ENS name: ${ensName} (${ensNameNode})`,
-                `Agent: ${resolved.domain} (${agentNode})`,
-                `Caller must be the ENS name owner.`,
-              ],
-            });
-          } else {
-            proposeTx({
-              action: `Set forward link: ${ensName} → ${resolved.domain}`,
-              chainId: linkingConfig.resolverChainId,
-              contractName: "IDUnifiedResolver",
-              contractAddress: linkingConfig.resolverAddress,
-              functionAbi: "function setLink(bytes32 ensNode, uint256 chainId, bytes32 agentNode)",
-              args: [ensNameNode, resolved.chainId, agentNode],
-              argLabels: ["ensNode", "chainId", "agentNode"],
-              notes: [
-                `ENS name: ${ensName} (${ensNameNode})`,
-                `Agent: ${resolved.domain} (${agentNode})`,
-                `Agent chain: ${agentChainLabel} (${resolved.chainId})`,
-                `Caller must be the ENS name owner.`,
-              ],
-            });
-          }
+          proposeTx({
+            action: `Set forward link: ${ensName} → ${resolved.domain}`,
+            contractName: "IDUnifiedResolver",
+            contractAddress: UNIFIED_RESOLVER,
+            functionAbi: "function setLink(bytes32 ensNode, uint256 chainId, bytes32 agentNode)",
+            args: [ensNameNode, CHAIN_ID, agentNode],
+            argLabels: ["ensNode", "chainId", "agentNode"],
+            notes: [
+              `ENS name: ${ensName} (${ensNameNode})`,
+              `Agent: ${resolved.domain} (${agentNode})`,
+              `Agent chain: Base (${CHAIN_ID})`,
+              `Caller must be the ENS name owner.`,
+            ],
+          });
         } else {
-          const wallet = getWallet(linkingConfig.resolverChainId);
-
-          if (linkingConfig.type === "linked") {
-            const resolver = new ethers.Contract(linkingConfig.resolverAddress, ID_LINKED_RESOLVER_ABI, wallet);
-            statusLog(chalk.dim(`  Calling setLink(${ensNameNode.slice(0, 10)}..., ${agentNode.slice(0, 10)}...)...`));
-            const tx = await resolver.setLink(ensNameNode, agentNode);
-            humanLog(`  Tx: ${chalk.dim(tx.hash)}`);
-            await tx.wait();
-          } else {
-            const resolver = new ethers.Contract(linkingConfig.resolverAddress, ID_UNIFIED_RESOLVER_ABI, wallet);
-            statusLog(chalk.dim(`  Calling setLink(${ensNameNode.slice(0, 10)}..., ${resolved.chainId}, ${agentNode.slice(0, 10)}...)...`));
-            const tx = await resolver.setLink(ensNameNode, resolved.chainId, agentNode);
-            humanLog(`  Tx: ${chalk.dim(tx.hash)}`);
-            await tx.wait();
+          // Need L1 wallet for resolver interaction
+          const pk = process.env.PRIVATE_KEY;
+          if (!pk) {
+            throw new CliError("Forward link requires PRIVATE_KEY (L1 Ethereum transaction).", ExitCode.AUTH_ERROR);
           }
+          const l1Rpc = process.env.RPC_URL_ETH || "https://ethereum-rpc.publicnode.com";
+          const l1Provider = new ethers.JsonRpcProvider(l1Rpc);
+          const wallet = new ethers.Wallet(pk, l1Provider);
+
+          const resolver = new ethers.Contract(UNIFIED_RESOLVER, ID_UNIFIED_RESOLVER_ABI, wallet);
+          statusLog(chalk.dim(`  Calling setLink(${ensNameNode.slice(0, 10)}..., ${CHAIN_ID}, ${agentNode.slice(0, 10)}...)...`));
+          const tx = await resolver.setLink(ensNameNode, CHAIN_ID, agentNode);
+          humanLog(`  Tx: ${chalk.dim(tx.hash)}`);
+          await tx.wait();
           humanLog(chalk.green(`  Forward link set.`));
         }
         humanLog("");
       }
 
-      // ── Step 3: Set resolver on .eth name (L1/Sepolia) ────────────────
+      // ── Step 3: Set resolver on .eth name (L1) ────────────────────────
 
       if (!stepFilter || stepFilter === 3) {
         humanLog(chalk.bold("Step 3: Set resolver on ENS name"));
-        humanLog(chalk.dim(`  Points ${ensName}'s resolver to the linking resolver on ${chainLabel}`));
+        humanLog(chalk.dim(`  Points ${ensName}'s resolver to IDUnifiedResolver on Ethereum`));
 
         if (isDryRun()) {
-          // Show both wrapped and unwrapped proposals
           proposeTx({
             action: `Set resolver on ${ensName} to linking resolver`,
-            chainId: registryChainId,
             contractName: "ENS Registry",
             contractAddress: ENS_REGISTRY,
             functionAbi: "function setResolver(bytes32 node, address resolver)",
-            args: [ensNameNode, linkingConfig.resolverAddress],
+            args: [ensNameNode, UNIFIED_RESOLVER],
             argLabels: ["node", "resolver"],
             notes: [
               `ENS name: ${ensName}`,
-              `Resolver: ${linkingConfig.resolverAddress}`,
+              `Resolver: ${UNIFIED_RESOLVER}`,
               `For wrapped names, uses NameWrapper.setResolver() instead.`,
             ],
           });
         } else {
+          const pk = process.env.PRIVATE_KEY;
+          if (!pk) {
+            throw new CliError("Setting resolver requires PRIVATE_KEY (L1 Ethereum transaction).", ExitCode.AUTH_ERROR);
+          }
+          const l1Rpc = process.env.RPC_URL_ETH || "https://ethereum-rpc.publicnode.com";
+          const l1Provider = new ethers.JsonRpcProvider(l1Rpc);
+          const wallet = new ethers.Wallet(pk, l1Provider);
+
           // Check if name is wrapped
-          const { owner: ensOwner, isWrapped } = await checkEnsOwnership(ensNameNode, registryChainId);
+          const { owner: ensOwner, isWrapped } = await checkEnsOwnership(ensNameNode, l1Provider);
 
           if (!ensOwner) {
             throw new CliError(`${ensName} is not registered on ENS.`, ExitCode.NOT_FOUND);
           }
 
-          const wallet = getWallet(registryChainId);
           if (ensOwner.toLowerCase() !== wallet.address.toLowerCase()) {
             throw new CliError(
               `You don't own ${ensName} on ENS. Owner: ${ensOwner}`,
@@ -270,20 +215,19 @@ export const linkEnsCommand = new Command("link-ens")
           }
 
           if (isWrapped) {
-            const wrapperAddr = ENS_NAME_WRAPPER[registryChainId];
-            const wrapper = new ethers.Contract(wrapperAddr, ENS_NAME_WRAPPER_ABI, wallet);
+            const wrapper = new ethers.Contract(ENS_NAME_WRAPPER_ADDR, ENS_NAME_WRAPPER_ABI, wallet);
             statusLog(chalk.dim(`  Setting resolver via NameWrapper (wrapped name)...`));
-            const tx = await wrapper.setResolver(ensNameNode, linkingConfig.resolverAddress);
+            const tx = await wrapper.setResolver(ensNameNode, UNIFIED_RESOLVER);
             humanLog(`  Tx: ${chalk.dim(tx.hash)}`);
             await tx.wait();
           } else {
             const registry = new ethers.Contract(ENS_REGISTRY, ENS_REGISTRY_ABI, wallet);
             statusLog(chalk.dim(`  Setting resolver via ENS Registry...`));
-            const tx = await registry.setResolver(ensNameNode, linkingConfig.resolverAddress);
+            const tx = await registry.setResolver(ensNameNode, UNIFIED_RESOLVER);
             humanLog(`  Tx: ${chalk.dim(tx.hash)}`);
             await tx.wait();
           }
-          humanLog(chalk.green(`  Resolver set to ${linkingConfig.type === "linked" ? "IDLinkedResolver" : "IDUnifiedResolver"}.`));
+          humanLog(chalk.green(`  Resolver set to IDUnifiedResolver.`));
         }
         humanLog("");
       }
@@ -297,10 +241,9 @@ export const linkEnsCommand = new Command("link-ens")
           ensNameNode,
           agentName: resolved.domain,
           agentNode,
-          agentChainId: resolved.chainId,
-          resolverType: linkingConfig.type,
-          resolverAddress: linkingConfig.resolverAddress,
-        }, { chain: agentConfig.name, chainId: resolved.chainId });
+          resolverType: "unified",
+          resolverAddress: UNIFIED_RESOLVER,
+        });
       }
     } catch (err: any) {
       handleErrorJson(err);

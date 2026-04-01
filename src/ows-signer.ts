@@ -13,6 +13,7 @@
 
 import { ethers } from "ethers";
 import { execFileSync } from "child_process";
+import { CHAIN_ID } from "./config.js";
 
 /**
  * Resolve the EVM address for an OWS wallet by parsing `ows wallet list`.
@@ -39,24 +40,17 @@ function getOwsWalletAddress(walletName: string): string {
   throw new Error(`OWS wallet "${walletName}" not found or has no EVM address`);
 }
 
-/**
- * Map chain ID to CAIP-2 identifier for OWS.
- */
-function chainIdToCaip2(chainId: number): string {
-  return `eip155:${chainId}`;
-}
+const CAIP2_CHAIN = `eip155:${CHAIN_ID}`;
 
 export class OwsSigner extends ethers.AbstractSigner {
   private _walletName: string;
-  private _chainId: number;
 
   /** Synchronous address — resolved eagerly at construction time. */
   readonly address: string;
 
-  constructor(walletName: string, provider: ethers.Provider, chainId: number) {
+  constructor(walletName: string, provider: ethers.Provider) {
     super(provider);
     this._walletName = walletName;
-    this._chainId = chainId;
     // Resolve address eagerly so .address works synchronously like ethers.Wallet
     this.address = getOwsWalletAddress(walletName);
   }
@@ -66,7 +60,7 @@ export class OwsSigner extends ethers.AbstractSigner {
   }
 
   connect(provider: ethers.Provider): OwsSigner {
-    return new OwsSigner(this._walletName, provider, this._chainId);
+    return new OwsSigner(this._walletName, provider);
   }
 
   async signTransaction(tx: ethers.TransactionLike): Promise<string> {
@@ -85,7 +79,7 @@ export class OwsSigner extends ethers.AbstractSigner {
     const sigHex = execFileSync("ows", [
       "sign", "tx",
       "--wallet", this._walletName,
-      "--chain", chainIdToCaip2(this._chainId),
+      "--chain", CAIP2_CHAIN,
       "--tx", unsignedHex,
     ], {
       encoding: "utf8",
@@ -115,7 +109,7 @@ export class OwsSigner extends ethers.AbstractSigner {
     const result = execFileSync("ows", [
       "sign", "message",
       "--wallet", this._walletName,
-      "--chain", chainIdToCaip2(this._chainId),
+      "--chain", CAIP2_CHAIN,
       "--message", msgHex,
     ], {
       encoding: "utf8",
@@ -162,7 +156,7 @@ export class OwsSigner extends ethers.AbstractSigner {
     const result = execFileSync("ows", [
       "sign", "message",
       "--wallet", this._walletName,
-      "--chain", chainIdToCaip2(this._chainId),
+      "--chain", CAIP2_CHAIN,
       "--message", "dummy",
       "--typed-data", typedData,
       "--json",

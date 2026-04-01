@@ -1,7 +1,7 @@
 import { Command } from "commander";
 import { ethers } from "ethers";
 import chalk from "chalk";
-import { resolveChain, getChainConfig } from "../config.js";
+import { getConfig } from "../config.js";
 import { getWallet } from "../provider.js";
 import { REGISTRAR_ABI, USDC_ABI } from "../abi.js";
 import { formatDomainName, formatUsdc, signUsdcPermit, isDryRun, proposeTx, CliError, ExitCode, validateAddress, validateLabel } from "../utils.js";
@@ -9,7 +9,6 @@ import { outputSuccess, handleErrorJson, humanLog, statusLog } from "../output.j
 
 export const registerCommand = new Command("register")
   .description("Register a new agent name (permanent, one-time fee)")
-  .option("-c, --chain <chain>", "Chain to register on", "base")
   .option("--sublabel <name>", "Create a subname under the registered agent")
   .option("--text <pairs...>", "Text records as key=value pairs")
   .option("--address <addr>", "Set ETH address record to this address")
@@ -17,11 +16,10 @@ export const registerCommand = new Command("register")
   .option("--dry-run", "Show transaction proposal without executing")
   .action(async (opts) => {
     try {
-      const chainId = resolveChain(opts.chain);
-      const config = getChainConfig(chainId);
-      const wallet = getWallet(chainId);
+      const config = getConfig();
+      const wallet = getWallet();
 
-      statusLog(chalk.dim(`Chain: ${config.name} (${chainId})`));
+      statusLog(chalk.dim(`Chain: ${config.name} (${config.chainId})`));
       statusLog(chalk.dim(`Wallet: ${wallet.address}`));
 
       const registrar = new ethers.Contract(config.ID_AGENT_REGISTRAR, REGISTRAR_ABI, wallet);
@@ -36,7 +34,7 @@ export const registerCommand = new Command("register")
       humanLog(`Next label: ${chalk.bold(nextLabel)}`);
       const domainName = opts.sublabel
         ? `${opts.sublabel}.${nextLabel}${config.suffix}`
-        : formatDomainName(nextLabel, chainId);
+        : formatDomainName(nextLabel);
       humanLog(`Domain: ${chalk.bold(domainName)}`);
       humanLog(`Price: ${chalk.bold(formatUsdc(price))} USDC (one-time, permanent)`);
 
@@ -83,7 +81,6 @@ export const registerCommand = new Command("register")
           : ["owner", "referrer", "textKeys", "textValues", "coinTypes", "addresses", "contentHash", "dataKeys", "dataValues", "permitValue", "permitDeadline", "permitV", "permitR", "permitS"];
         proposeTx({
           action: `Register ${domainName}`,
-          chainId,
           contractName: "IDAgentRegistrar",
           contractAddress: config.ID_AGENT_REGISTRAR,
           functionAbi: fnAbi,
@@ -102,7 +99,7 @@ export const registerCommand = new Command("register")
       let permit = { deadline: 0n, v: 0, r: ethers.ZeroHash, s: ethers.ZeroHash };
       try {
         statusLog(chalk.dim("Signing USDC permit..."));
-        permit = await signUsdcPermit(wallet, usdc, config.ID_AGENT_REGISTRAR, price, chainId);
+        permit = await signUsdcPermit(wallet, usdc, config.ID_AGENT_REGISTRAR, price);
       } catch (permitErr: any) {
         statusLog(chalk.dim(`Permit not supported (${permitErr.message?.slice(0, 60)}), using approve...`));
         const approveTx = await usdc.approve(config.ID_AGENT_REGISTRAR, price);
@@ -137,7 +134,7 @@ export const registerCommand = new Command("register")
         txHash: tx.hash,
         gasUsed: receipt.gasUsed.toString(),
         price: { raw: price.toString(), formatted: formatUsdc(price) },
-      }, { chain: config.name, chainId });
+      });
     } catch (err: any) {
       handleErrorJson(err);
     }

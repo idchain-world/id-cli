@@ -1,7 +1,7 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect } from "vitest";
 import { ethers } from "ethers";
 import { CliError, ExitCode, formatUsdc, validateAddress, validateLabel } from "../../../src/utils.js";
-import { CHAIN_CONFIGS } from "../../../src/config.js";
+import { getConfig } from "../../../src/config.js";
 
 describe("register command logic", () => {
   describe("text record parsing", () => {
@@ -58,8 +58,8 @@ describe("register command logic", () => {
 
   describe("USDC balance check", () => {
     it("detects insufficient balance", () => {
-      const balance = 500_000n; // 0.5 USDC
-      const price = 1_000_000n; // 1 USDC
+      const balance = 500_000n;
+      const price = 1_000_000n;
       expect(balance < price).toBe(true);
     });
 
@@ -119,18 +119,17 @@ describe("register command logic", () => {
   describe("domain name construction", () => {
     it("constructs without sublabel", () => {
       const nextLabel = "agent-42";
-      const chainId = 8453;
-      const config = CHAIN_CONFIGS[chainId];
+      const config = getConfig();
       const domainName = `${nextLabel}${config.suffix}`;
-      expect(domainName).toBe("agent-42.base.xid.eth");
+      expect(domainName).toBe("agent-42.xid.eth");
     });
 
     it("constructs with sublabel", () => {
       const nextLabel = "agent-42";
       const sublabel = "neo";
-      const config = CHAIN_CONFIGS[8453];
+      const config = getConfig();
       const domainName = `${sublabel}.${nextLabel}${config.suffix}`;
-      expect(domainName).toBe("neo.agent-42.base.xid.eth");
+      expect(domainName).toBe("neo.agent-42.xid.eth");
     });
   });
 });

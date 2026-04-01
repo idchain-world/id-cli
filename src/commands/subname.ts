@@ -1,7 +1,7 @@
 import { Command } from "commander";
 import { ethers } from "ethers";
 import chalk from "chalk";
-import { getChainConfig } from "../config.js";
+import { getConfig } from "../config.js";
 import { getWallet } from "../provider.js";
 import { REGISTRY_ABI } from "../abi.js";
 import { resolveNameAsync, indexerFetch, isDryRun, proposeTx, validateAddress, validateLabel, parseNonNegativeInt, verifyOwnership } from "../utils.js";
@@ -10,16 +10,15 @@ import { outputSuccess, handleErrorJson, humanLog, statusLog } from "../output.j
 export const createSubnameCommand = new Command("create-subname")
   .description("Create a subname under an agent")
   .argument("<sublabel>", "Subname label (e.g., neo)")
-  .requiredOption("--parent <name>", "Parent name (e.g., agent-0, agent-0.base.xid.eth)")
-  .option("-c, --chain <chain>", "Chain", "base")
+  .requiredOption("--parent <name>", "Parent name (e.g., agent-0, agent-0.xid.eth)")
   .option("--owner <address>", "Owner address (defaults to your wallet)")
   .option("--dry-run", "Show transaction proposal without executing")
   .action(async (sublabel, opts) => {
     try {
       validateLabel(sublabel);
-      const parent = await resolveNameAsync(opts.parent, opts.chain);
-      const config = getChainConfig(parent.chainId);
-      const wallet = getWallet(parent.chainId);
+      const parent = await resolveNameAsync(opts.parent);
+      const config = getConfig();
+      const wallet = getWallet();
       const owner = opts.owner ? validateAddress(opts.owner, "--owner") : wallet.address;
 
       const fullDomain = `${sublabel}.${parent.domain}`;
@@ -27,7 +26,6 @@ export const createSubnameCommand = new Command("create-subname")
       if (isDryRun()) {
         proposeTx({
           action: `Create subname ${fullDomain}`,
-          chainId: parent.chainId,
           contractName: "IDRegistry",
           contractAddress: config.ID_REGISTRY,
           functionAbi: "function setSubnodeOwner(bytes32 node, string label, address newOwner) returns (bytes32)",
@@ -54,7 +52,7 @@ export const createSubnameCommand = new Command("create-subname")
         parent: parent.domain,
         owner,
         txHash: tx.hash,
-      }, { chain: config.name, chainId: parent.chainId });
+      });
     } catch (err: any) {
       handleErrorJson(err);
     }
@@ -62,17 +60,16 @@ export const createSubnameCommand = new Command("create-subname")
 
 export const listSubnamesCommand = new Command("list-subnames")
   .description("List subnames under an agent")
-  .argument("<name>", "Parent name (e.g., agent-0, agent-0.base.xid.eth)")
-  .option("-c, --chain <chain>", "Chain", "base")
+  .argument("<name>", "Parent name (e.g., agent-0, agent-0.xid.eth)")
   .option("-l, --limit <n>", "Number of results", "50")
   .option("-o, --offset <n>", "Offset for pagination", "0")
   .action(async (name, opts) => {
     try {
-      const resolved = await resolveNameAsync(name, opts.chain);
+      const resolved = await resolveNameAsync(name);
       const limit = parseNonNegativeInt(opts.limit, "--limit");
       const offset = parseNonNegativeInt(opts.offset, "--offset");
 
-      const res = await indexerFetch(`/api/domains?parent=${resolved.path}&chain=${resolved.chainId}&limit=${limit}&offset=${offset}`);
+      const res = await indexerFetch(`/api/domains?parent=${resolved.path}&limit=${limit}&offset=${offset}`);
       if (!res.ok) {
         humanLog(chalk.dim("Could not fetch subnames from indexer."));
         return;
@@ -82,7 +79,7 @@ export const listSubnamesCommand = new Command("list-subnames")
       const domains = data.domains || data || [];
       if (!domains.length) {
         humanLog(chalk.dim(`No subnames found under ${resolved.domain}`));
-        outputSuccess({ domain: resolved.domain, subnames: [] }, { chainId: resolved.chainId });
+        outputSuccess({ domain: resolved.domain, subnames: [] });
         return;
       }
 
@@ -95,7 +92,7 @@ export const listSubnamesCommand = new Command("list-subnames")
         domain: resolved.domain,
         subnames: domains.map((d: any) => ({ label: d.label || d.name, owner: d.owner || null })),
         count: domains.length,
-      }, { chainId: resolved.chainId });
+      });
     } catch (err: any) {
       handleErrorJson(err);
     }

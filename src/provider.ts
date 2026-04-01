@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from "fs";
 import { resolve } from "path";
 import { ethers } from "ethers";
-import { getChainConfig } from "./config.js";
+import { getConfig, CHAIN_ID } from "./config.js";
 import { CliError, ExitCode } from "./utils.js";
 import { OwsSigner } from "./ows-signer.js";
 
@@ -16,24 +16,24 @@ function isKeyFromDotenv(): boolean {
   }
 }
 
-export function getProvider(chainId: number): ethers.JsonRpcProvider {
-  const config = getChainConfig(chainId);
+export function getProvider(): ethers.JsonRpcProvider {
+  const config = getConfig();
   return new ethers.JsonRpcProvider(config.rpc);
 }
 
 /**
- * Get a signer for the given chain.
+ * Get a signer for Base.
  *
  * Supports two modes:
  * - OWS wallet: set --wallet flag or OWS_WALLET env var. Signs via `ows sign tx`.
  *   Private key never leaves the OWS vault. Policies enforced via OWS_PASSPHRASE.
  * - Raw key: set PRIVATE_KEY env var. Traditional ethers.Wallet signer.
  */
-export function getWallet(chainId: number): ethers.Wallet | OwsSigner {
+export function getWallet(): ethers.Wallet | OwsSigner {
   // Check for OWS wallet first
   const owsWallet = process.env.OWS_WALLET;
   if (owsWallet) {
-    return new OwsSigner(owsWallet, getProvider(chainId), chainId);
+    return new OwsSigner(owsWallet, getProvider());
   }
 
   const pk = process.env.PRIVATE_KEY;
@@ -55,7 +55,7 @@ export function getWallet(chainId: number): ethers.Wallet | OwsSigner {
     );
   }
   try {
-    return new ethers.Wallet(pk, getProvider(chainId));
+    return new ethers.Wallet(pk, getProvider());
   } catch {
     throw new CliError(
       "Invalid PRIVATE_KEY format — must be a 64-character hex string (with or without 0x prefix).",

@@ -1,7 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { ethers } from "ethers";
-import { resolveName, validateLabel, validateAddress, parseNonNegativeInt, labelhash, makeNode } from "../../../src/utils.js";
-import { CHAIN_CONFIGS } from "../../../src/config.js";
+import { resolveName, validateLabel, validateAddress, parseNonNegativeInt, makeNode } from "../../../src/utils.js";
+import { getConfig } from "../../../src/config.js";
 
 describe("create-subname command logic", () => {
   describe("sublabel validation", () => {
@@ -20,10 +19,10 @@ describe("create-subname command logic", () => {
 
   describe("full domain construction", () => {
     it("constructs sublabel.parent.suffix", () => {
-      const parent = resolveName("agent-0", "base");
+      const parent = resolveName("agent-0");
       const sublabel = "neo";
       const fullDomain = `${sublabel}.${parent.domain}`;
-      expect(fullDomain).toBe("neo.agent-0.base.xid.eth");
+      expect(fullDomain).toBe("neo.agent-0.xid.eth");
     });
   });
 
@@ -41,14 +40,13 @@ describe("create-subname command logic", () => {
 
   describe("dry-run proposal", () => {
     it("builds correct setSubnodeOwner proposal", () => {
-      const parent = resolveName("agent-0", "base");
-      const config = CHAIN_CONFIGS[8453];
+      const parent = resolveName("agent-0");
+      const config = getConfig();
       const sublabel = "neo";
       const owner = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266";
 
       const proposal = {
         action: `Create subname neo.${parent.domain}`,
-        chainId: parent.chainId,
         contractName: "IDRegistry",
         contractAddress: config.ID_REGISTRY,
         functionAbi: "function setSubnodeOwner(bytes32 node, string label, address newOwner) returns (bytes32)",
@@ -64,9 +62,9 @@ describe("create-subname command logic", () => {
 
   describe("subname node computation", () => {
     it("child node matches manual computation", () => {
-      const parent = resolveName("agent-0", "base");
+      const parent = resolveName("agent-0");
       const childNode = makeNode(parent.node, "neo");
-      const resolved = resolveName("neo.agent-0", "base");
+      const resolved = resolveName("neo.agent-0");
       expect(resolved.node).toBe(childNode);
     });
   });
@@ -89,11 +87,11 @@ describe("list-subnames command logic", () => {
 
   describe("indexer URL construction", () => {
     it("builds correct query path", () => {
-      const resolved = resolveName("agent-0", "base");
+      const resolved = resolveName("agent-0");
       const limit = 50;
       const offset = 0;
-      const path = `/api/domains?parent=${resolved.path}&chain=${resolved.chainId}&limit=${limit}&offset=${offset}`;
-      expect(path).toBe("/api/domains?parent=agent-0&chain=8453&limit=50&offset=0");
+      const path = `/api/domains?parent=${resolved.path}&limit=${limit}&offset=${offset}`;
+      expect(path).toBe("/api/domains?parent=agent-0&limit=50&offset=0");
     });
   });
 });

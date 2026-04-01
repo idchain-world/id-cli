@@ -1,7 +1,7 @@
 import { Command } from "commander";
 import { ethers } from "ethers";
 import chalk from "chalk";
-import { getChainConfig } from "../config.js";
+import { getConfig } from "../config.js";
 import { getProvider } from "../provider.js";
 import { REGISTRY_ABI } from "../abi.js";
 import { resolveNameAsync, indexerFetch } from "../utils.js";
@@ -9,14 +9,13 @@ import { outputSuccess, handleErrorJson, humanLog } from "../output.js";
 
 export const infoCommand = new Command("info")
   .description("Show details for an agent name")
-  .argument("<name>", "Name (e.g., agent-0, neo.agent-0, agent-0.base.xid.eth)")
-  .option("-c, --chain <chain>", "Chain (not needed for full domain names)", "base")
+  .argument("<name>", "Name (e.g., agent-0, neo.agent-0, agent-0.xid.eth)")
   .option("--brief", "Show only owner and lock status (skip records)")
   .action(async (name, opts) => {
     try {
-      const resolved = await resolveNameAsync(name, opts.chain);
-      const config = getChainConfig(resolved.chainId);
-      const provider = getProvider(resolved.chainId);
+      const resolved = await resolveNameAsync(name);
+      const config = getConfig();
+      const provider = getProvider();
 
       const registry = new ethers.Contract(config.ID_REGISTRY, REGISTRY_ABI, provider);
 
@@ -29,7 +28,7 @@ export const infoCommand = new Command("info")
 
       if (owner === ethers.ZeroAddress) {
         humanLog(chalk.yellow(`${resolved.domain} is not registered.`));
-        outputSuccess({ domain: resolved.domain, registered: false }, { chain: config.name, chainId: resolved.chainId });
+        outputSuccess({ domain: resolved.domain, registered: false });
         return;
       }
 
@@ -102,7 +101,7 @@ export const infoCommand = new Command("info")
         locked: isLocked,
         ethAddress: ethAddr !== ethers.ZeroAddress ? ethAddr : null,
         ...(opts.brief ? {} : { textRecords, addressRecords, dataRecords, contenthash }),
-      }, { chain: config.name, chainId: resolved.chainId });
+      });
     } catch (err: any) {
       handleErrorJson(err);
     }

@@ -1,13 +1,13 @@
 import { describe, it, expect } from "vitest";
 import { ethers } from "ethers";
 import { resolveName, parseNonNegativeInt, CliError } from "../../../src/utils.js";
-import { CHAIN_CONFIGS } from "../../../src/config.js";
+import { getConfig } from "../../../src/config.js";
 
 describe("set-text command logic", () => {
   describe("dry-run proposal", () => {
     it("builds correct setText proposal", () => {
-      const resolved = resolveName("agent-0", "base");
-      const config = CHAIN_CONFIGS[8453];
+      const resolved = resolveName("agent-0");
+      const config = getConfig();
       const key = "description";
       const value = "test agent";
 
@@ -77,9 +77,9 @@ describe("set-addr command logic", () => {
 describe("set-contenthash command logic", () => {
   describe("dry-run proposal", () => {
     it("builds correct setContenthash proposal", () => {
-      const resolved = resolveName("agent-0", "base");
-      const config = CHAIN_CONFIGS[8453];
-      const hash = "0xe3010170122000000000000000000000000000000000000000000000000000000000000000";
+      const resolved = resolveName("agent-0");
+      const config = getConfig();
+      const hash ="0xe3010170122000000000000000000000000000000000000000000000000000000000000000";
 
       const proposal = {
         action: `Set content hash on ${resolved.domain}`,

@@ -1,7 +1,7 @@
 import { Command } from "commander";
 import { ethers } from "ethers";
 import chalk from "chalk";
-import { getChainConfig } from "../config.js";
+import { getConfig } from "../config.js";
 import { getWallet } from "../provider.js";
 import { REGISTRY_ABI } from "../abi.js";
 import { resolveNameAsync, isDryRun, proposeTx, verifyOwnership, CliError, ExitCode } from "../utils.js";
@@ -27,8 +27,7 @@ function validateUrl(url: string, flag: string): string {
 
 export const setAgentEndpointsCommand = new Command("set-agent-endpoints")
   .description("Set ENSIP-26 agent endpoint records (bulk update via setRecord)")
-  .argument("<name>", "Name (e.g., agent-0, neo.agent-0, agent-0.base.xid.eth)")
-  .option("-c, --chain <chain>", "Chain", "base")
+  .argument("<name>", "Name (e.g., agent-0, neo.agent-0, agent-0.xid.eth)")
   .option("--mcp <url>", "MCP (Model Context Protocol) endpoint")
   .option("--a2a <url>", "A2A (Agent-to-Agent) endpoint")
   .option("--oasf <url>", "OASF (OpenAPI Service Format) endpoint")
@@ -38,8 +37,8 @@ export const setAgentEndpointsCommand = new Command("set-agent-endpoints")
   .option("--dry-run", "Show transaction proposal without executing")
   .action(async (name, opts) => {
     try {
-      const resolved = await resolveNameAsync(name, opts.chain);
-      const config = getChainConfig(resolved.chainId);
+      const resolved = await resolveNameAsync(name);
+      const config = getConfig();
 
       // Build text records from flags
       const keys: string[] = [];
@@ -86,7 +85,6 @@ export const setAgentEndpointsCommand = new Command("set-agent-endpoints")
       if (isDryRun()) {
         proposeTx({
           action: `Set ENSIP-26 agent endpoints on ${resolved.domain}`,
-          chainId: resolved.chainId,
           contractName: "IDRegistry",
           contractAddress: config.ID_REGISTRY,
           functionAbi: "function setRecord(bytes32 node, string[] keys, string[] values, uint256[] coinTypes, bytes[] addresses, bytes contentHash, string[] dataKeys, bytes[] dataValues)",
@@ -97,7 +95,7 @@ export const setAgentEndpointsCommand = new Command("set-agent-endpoints")
         return;
       }
 
-      const wallet = getWallet(resolved.chainId);
+      const wallet = getWallet();
       const registry = new ethers.Contract(config.ID_REGISTRY, REGISTRY_ABI, wallet);
       await verifyOwnership(registry, resolved.node, wallet, resolved.domain);
 
@@ -124,7 +122,7 @@ export const setAgentEndpointsCommand = new Command("set-agent-endpoints")
         domain: resolved.domain,
         records: keys.map((k, i) => ({ key: k, value: values[i] })),
         txHash: tx.hash,
-      }, { chain: config.name, chainId: resolved.chainId });
+      });
     } catch (err: any) {
       handleErrorJson(err);
     }

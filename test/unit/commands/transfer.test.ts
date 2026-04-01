@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { ethers } from "ethers";
 import { validateAddress, resolveName, CliError, ExitCode } from "../../../src/utils.js";
-import { CHAIN_CONFIGS } from "../../../src/config.js";
+import { getConfig } from "../../../src/config.js";
 
 describe("transfer command logic", () => {
   describe("--to address validation", () => {
@@ -22,26 +22,25 @@ describe("transfer command logic", () => {
 
   describe("name resolution for transfer", () => {
     it("resolves full domain", () => {
-      const result = resolveName("agent-0.base.xid.eth");
+      const result = resolveName("agent-0.xid.eth");
       expect(result.chainId).toBe(8453);
       expect(result.node).toMatch(/^0x[0-9a-f]{64}$/);
     });
 
-    it("resolves short label with chain", () => {
-      const result = resolveName("agent-0", "base");
+    it("resolves short label", () => {
+      const result = resolveName("agent-0");
       expect(result.chainId).toBe(8453);
     });
   });
 
   describe("dry-run proposal construction", () => {
     it("builds correct proposal arguments", () => {
-      const resolved = resolveName("agent-0", "base");
+      const resolved = resolveName("agent-0");
       const toAddress = validateAddress("0x70997970C51812dc3A010C7d01b50e0d17dc79C8", "--to");
-      const config = CHAIN_CONFIGS[8453];
+      const config = getConfig();
 
       const proposal = {
         action: `Transfer ${resolved.domain} to ${toAddress}`,
-        chainId: resolved.chainId,
         contractName: "IDRegistry",
         contractAddress: config.ID_REGISTRY,
         functionAbi: "function setOwner(bytes32 node, address newOwner)",

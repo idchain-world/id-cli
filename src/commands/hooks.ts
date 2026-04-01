@@ -1,8 +1,8 @@
 import { Command } from "commander";
 import { ethers } from "ethers";
 import chalk from "chalk";
-import { getChainConfig } from "../config.js";
-import { getWallet, getProvider } from "../provider.js";
+import { getConfig } from "../config.js";
+import { getWallet } from "../provider.js";
 import { REGISTRY_ABI } from "../abi.js";
 import { resolveNameAsync, isDryRun, proposeTx, verifyOwnership, CliError, ExitCode } from "../utils.js";
 import { outputSuccess, handleErrorJson, humanLog, statusLog } from "../output.js";
@@ -123,22 +123,20 @@ export function parseHook(hookStr: string): ParsedHook {
 
 export const setHookCommand = new Command("set-hook")
   .description("Set an ERC-8121 hook on a name")
-  .argument("<name>", "Name (e.g., agent-0, neo.agent-0, agent-0.base.xid.eth)")
+  .argument("<name>", "Name (e.g., agent-0, neo.agent-0, agent-0.xid.eth)")
   .argument("<hook>", 'Hook value, e.g. hook(0xbeabacc8,transfer(address,address,uint256),(bool),0xTarget)')
-  .option("-c, --chain <chain>", "Chain", "base")
   .option("--dry-run", "Show transaction proposal without executing")
   .action(async (name, hookValue, opts) => {
     try {
       const parsed = parseHook(hookValue);
       const key = `erc8121-hook[${parsed.selector}]`;
 
-      const resolved = await resolveNameAsync(name, opts.chain);
-      const config = getChainConfig(resolved.chainId);
+      const resolved = await resolveNameAsync(name);
+      const config = getConfig();
 
       if (isDryRun()) {
         proposeTx({
           action: `Set ERC-8121 hook ${parsed.selector} on ${resolved.domain}`,
-          chainId: resolved.chainId,
           contractName: "IDRegistry",
           contractAddress: config.ID_REGISTRY,
           functionAbi: "function setText(bytes32 node, string key, string value)",
@@ -154,7 +152,7 @@ export const setHookCommand = new Command("set-hook")
         return;
       }
 
-      const wallet = getWallet(resolved.chainId);
+      const wallet = getWallet();
       const registry = new ethers.Contract(config.ID_REGISTRY, REGISTRY_ABI, wallet);
       await verifyOwnership(registry, resolved.node, wallet, resolved.domain);
 
@@ -172,7 +170,7 @@ export const setHookCommand = new Command("set-hook")
         target: parsed.target,
         hookValue,
         txHash: tx.hash,
-      }, { chainId: resolved.chainId });
+      });
     } catch (err: any) {
       handleErrorJson(err);
     }
@@ -180,18 +178,17 @@ export const setHookCommand = new Command("set-hook")
 
 export const getHooksCommand = new Command("get-hooks")
   .description("Show all ERC-8121 hooks for a name")
-  .argument("<name>", "Name (e.g., agent-0, neo.agent-0, agent-0.base.xid.eth)")
-  .option("-c, --chain <chain>", "Chain", "base")
+  .argument("<name>", "Name (e.g., agent-0, neo.agent-0, agent-0.xid.eth)")
   .action(async (name, opts) => {
     try {
-      const resolved = await resolveNameAsync(name, opts.chain);
+      const resolved = await resolveNameAsync(name);
 
       humanLog(chalk.bold(`ERC-8121 Hooks for ${resolved.domain}\n`));
 
       const res = await indexerFetch(`/api/domains/${resolved.node}/records`);
       if (!res.ok) {
         humanLog(chalk.dim("No records found (indexer unavailable)."));
-        outputSuccess({ domain: resolved.domain, hooks: [] }, { chainId: resolved.chainId });
+        outputSuccess({ domain: resolved.domain, hooks: [] });
         return;
       }
 
@@ -202,7 +199,7 @@ export const getHooksCommand = new Command("get-hooks")
 
       if (hooks.length === 0) {
         humanLog(chalk.dim("No hooks set."));
-        outputSuccess({ domain: resolved.domain, hooks: [] }, { chainId: resolved.chainId });
+        outputSuccess({ domain: resolved.domain, hooks: [] });
         return;
       }
 
@@ -218,7 +215,7 @@ export const getHooksCommand = new Command("get-hooks")
           key: h.key,
           value: h.value,
         })),
-      }, { chainId: resolved.chainId });
+      });
     } catch (err: any) {
       handleErrorJson(err);
     }

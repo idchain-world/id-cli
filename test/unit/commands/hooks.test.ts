@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { ethers } from "ethers";
 import { parseHook } from "../../../src/commands/hooks.js";
 import { resolveName, CliError } from "../../../src/utils.js";
-import { CHAIN_CONFIGS } from "../../../src/config.js";
+import { getConfig } from "../../../src/config.js";
 
 describe("parseHook", () => {
   // Build a valid hook for testing
@@ -100,8 +100,8 @@ describe("set-hook command logic", () => {
     const hookValue = `hook(${selector},${sig},(bool),${target})`;
     const key = `erc8121-hook[${selector}]`;
 
-    const resolved = resolveName("agent-0", "base");
-    const config = CHAIN_CONFIGS[8453];
+    const resolved = resolveName("agent-0");
+    const config = getConfig();
 
     const proposal = {
       action: `Set ERC-8121 hook ${selector} on ${resolved.domain}`,

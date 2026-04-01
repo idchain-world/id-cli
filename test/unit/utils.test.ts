@@ -13,7 +13,7 @@ import {
   CliError,
   ExitCode,
 } from "../../src/utils.js";
-import { CHAIN_CONFIGS } from "../../src/config.js";
+import { getConfig } from "../../src/config.js";
 
 // ── validateLabel ────────────────────────────────────────────────────────────
 
@@ -138,7 +138,6 @@ describe("parseNonNegativeInt", () => {
   });
 
   it("rejects floats (parses as int, but 1.5 -> 1)", () => {
-    // parseInt("1.5") returns 1, which is valid
     expect(parseNonNegativeInt("1.5", "--limit")).toBe(1);
   });
 
@@ -197,12 +196,12 @@ describe("makeNode", () => {
   });
 
   it("is deterministic", () => {
-    const parent = CHAIN_CONFIGS[8453].PARENT_NODE;
+    const parent = getConfig().PARENT_NODE;
     expect(makeNode(parent, "agent-0")).toBe(makeNode(parent, "agent-0"));
   });
 
   it("different labels produce different nodes", () => {
-    const parent = CHAIN_CONFIGS[8453].PARENT_NODE;
+    const parent = getConfig().PARENT_NODE;
     expect(makeNode(parent, "agent-0")).not.toBe(makeNode(parent, "agent-1"));
   });
 });
@@ -210,115 +209,80 @@ describe("makeNode", () => {
 // ── getNodeForLabel ──────────────────────────────────────────────────────────
 
 describe("getNodeForLabel", () => {
-  it("uses the chain's PARENT_NODE", () => {
-    const baseParent = CHAIN_CONFIGS[8453].PARENT_NODE;
-    const expected = makeNode(baseParent, "agent-0");
-    expect(getNodeForLabel("agent-0", 8453)).toBe(expected);
-  });
-
-  it("different chains produce different nodes for same label", () => {
-    const baseNode = getNodeForLabel("agent-0", 8453);
-    const ethNode = getNodeForLabel("agent-0", 1);
-    expect(baseNode).not.toBe(ethNode);
+  it("uses the PARENT_NODE", () => {
+    const config = getConfig();
+    const expected = makeNode(config.PARENT_NODE, "agent-0");
+    expect(getNodeForLabel("agent-0")).toBe(expected);
   });
 });
 
 // ── resolveName ──────────────────────────────────────────────────────────────
 
 describe("resolveName", () => {
-  it("resolves full domain with .base.xid.eth suffix", () => {
+  it("resolves full domain with .xid.eth suffix", () => {
+    const result = resolveName("agent-0.xid.eth");
+    expect(result.chainId).toBe(8453);
+    expect(result.path).toBe("agent-0");
+    expect(result.domain).toBe("agent-0.xid.eth");
+    expect(result.topLabel).toBe("agent-0");
+  });
+
+  it("resolves legacy .base.xid.eth suffix", () => {
     const result = resolveName("agent-0.base.xid.eth");
     expect(result.chainId).toBe(8453);
     expect(result.path).toBe("agent-0");
-    expect(result.domain).toBe("agent-0.base.xid.eth");
-    expect(result.topLabel).toBe("agent-0");
-  });
-
-  it("resolves full domain with .eth.xid.eth suffix", () => {
-    const result = resolveName("agent-0.eth.xid.eth");
-    expect(result.chainId).toBe(1);
-    expect(result.path).toBe("agent-0");
-  });
-
-  it("resolves full domain with .op.xid.eth suffix", () => {
-    const result = resolveName("agent-0.op.xid.eth");
-    expect(result.chainId).toBe(10);
-  });
-
-  it("resolves full domain with .arb.xid.eth suffix", () => {
-    const result = resolveName("agent-0.arb.xid.eth");
-    expect(result.chainId).toBe(42161);
-  });
-
-  it("resolves full domain with .sep.xid.eth suffix", () => {
-    const result = resolveName("agent-0.sep.xid.eth");
-    expect(result.chainId).toBe(11155111);
   });
 
   it("resolves multi-level path in full domain", () => {
-    const result = resolveName("neo.agent-0.base.xid.eth");
+    const result = resolveName("neo.agent-0.xid.eth");
     expect(result.chainId).toBe(8453);
     expect(result.path).toBe("neo.agent-0");
     expect(result.topLabel).toBe("agent-0");
-    expect(result.domain).toBe("neo.agent-0.base.xid.eth");
+    expect(result.domain).toBe("neo.agent-0.xid.eth");
   });
 
-  it("resolves short label with --chain flag", () => {
-    const result = resolveName("agent-0", "base");
-    expect(result.chainId).toBe(8453);
-    expect(result.path).toBe("agent-0");
-    expect(result.domain).toBe("agent-0.base.xid.eth");
-  });
-
-  it("resolves short path with --chain flag", () => {
-    const result = resolveName("neo.agent-0", "base");
-    expect(result.chainId).toBe(8453);
-    expect(result.path).toBe("neo.agent-0");
-    expect(result.topLabel).toBe("agent-0");
-  });
-
-  it("defaults to Base (8453) when no chain flag", () => {
+  it("resolves short label", () => {
     const result = resolveName("agent-0");
     expect(result.chainId).toBe(8453);
+    expect(result.path).toBe("agent-0");
+    expect(result.domain).toBe("agent-0.xid.eth");
+  });
+
+  it("resolves short path", () => {
+    const result = resolveName("neo.agent-0");
+    expect(result.chainId).toBe(8453);
+    expect(result.path).toBe("neo.agent-0");
+    expect(result.topLabel).toBe("agent-0");
   });
 
   it("computes correct node for single label", () => {
-    const result = resolveName("agent-0", "base");
-    const expected = getNodeForLabel("agent-0", 8453);
+    const result = resolveName("agent-0");
+    const expected = getNodeForLabel("agent-0");
     expect(result.node).toBe(expected);
   });
 
   it("computes correct node for multi-level path", () => {
-    const result = resolveName("neo.agent-0", "base");
-    // Hash right to left: agent-0 under PARENT_NODE, then neo under that
-    const baseParent = CHAIN_CONFIGS[8453].PARENT_NODE;
-    const agentNode = makeNode(baseParent, "agent-0");
+    const result = resolveName("neo.agent-0");
+    const config = getConfig();
+    const agentNode = makeNode(config.PARENT_NODE, "agent-0");
     const expected = makeNode(agentNode, "neo");
     expect(result.node).toBe(expected);
   });
 
   it("validates labels in path", () => {
-    expect(() => resolveName("INVALID.base.xid.eth")).toThrow("Invalid label");
+    expect(() => resolveName("INVALID.xid.eth")).toThrow("Invalid label");
   });
 
   it("validates each segment of multi-level path", () => {
-    expect(() => resolveName("good.BAD", "base")).toThrow("Invalid label");
+    expect(() => resolveName("good.BAD")).toThrow("Invalid label");
   });
 });
 
 // ── formatDomainName ─────────────────────────────────────────────────────────
 
 describe("formatDomainName", () => {
-  it("appends correct suffix for Base", () => {
-    expect(formatDomainName("agent-0", 8453)).toBe("agent-0.base.xid.eth");
-  });
-
-  it("appends correct suffix for Ethereum", () => {
-    expect(formatDomainName("agent-0", 1)).toBe("agent-0.eth.xid.eth");
-  });
-
-  it("appends correct suffix for Sepolia", () => {
-    expect(formatDomainName("agent-0", 11155111)).toBe("agent-0.sep.xid.eth");
+  it("appends .xid.eth suffix", () => {
+    expect(formatDomainName("agent-0")).toBe("agent-0.xid.eth");
   });
 });
 

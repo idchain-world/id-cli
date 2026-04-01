@@ -1,7 +1,7 @@
 import { Command } from "commander";
 import { ethers } from "ethers";
 import chalk from "chalk";
-import { resolveChain, getChainConfig } from "../config.js";
+import { getConfig, CHAIN_ID } from "../config.js";
 import { getWallet } from "../provider.js";
 import { IDENTITY_REGISTRY_ABI, REGISTRY_ABI } from "../abi.js";
 import { resolveNameAsync, isDryRun, proposeTx, verifyOwnership } from "../utils.js";
@@ -35,16 +35,14 @@ function buildErc7930Address(chainId: number, contractAddress: string): string {
   return "0x" + parts.join("");
 }
 
-function buildEnsip25Key(chainId: number, registryAddress: string, agentId: string): string {
-  const erc7930 = buildErc7930Address(chainId, registryAddress);
+function buildEnsip25Key(registryAddress: string, agentId: string): string {
+  const erc7930 = buildErc7930Address(CHAIN_ID, registryAddress);
   return `agent-registration[${erc7930}][${agentId}]`;
 }
 
 export const registerAgentCommand = new Command("register-agent")
   .description("Register on ERC-8004 IdentityRegistry (with optional ENSIP-25 linking)")
-  .argument("<name>", "Name (e.g., agent-0, neo.agent-0, agent-0.base.xid.eth)")
-  .option("-c, --chain <chain>", "Chain for the ERC-8004 registry", "base")
-  .option("--name-chain <chain>", "Chain where the ENS name lives (if different from registry chain)")
+  .argument("<name>", "Name (e.g., agent-0, neo.agent-0, agent-0.xid.eth)")
   .option("--services <json>", "Services JSON array")
   .option("--mcp <endpoint>", "Add an MCP service endpoint")
   .option("--http <endpoint>", "Add an HTTP service endpoint")
@@ -52,12 +50,9 @@ export const registerAgentCommand = new Command("register-agent")
   .option("--dry-run", "Show transaction proposal without executing")
   .action(async (name, opts) => {
     try {
-      const registryChainId = resolveChain(opts.chain);
-      const registryConfig = getChainConfig(registryChainId);
-      const wallet = getWallet(registryChainId);
-
-      const nameChainId = opts.nameChain ? resolveChain(opts.nameChain) : registryChainId;
-      const resolved = await resolveNameAsync(name, opts.nameChain || opts.chain);
+      const config = getConfig();
+      const wallet = getWallet();
+      const resolved = await resolveNameAsync(name);
 
       // Build agentURI
       const services: { name: string; endpoint: string }[] = [
@@ -76,9 +71,8 @@ export const registerAgentCommand = new Command("register-agent")
       if (isDryRun()) {
         proposeTx({
           action: `Register agent for ${resolved.domain} on ERC-8004`,
-          chainId: registryChainId,
           contractName: "IdentityRegistry (ERC-8004)",
-          contractAddress: registryConfig.IDENTITY_REGISTRY_8004,
+          contractAddress: config.IDENTITY_REGISTRY_8004,
           functionAbi: "function register(string agentURI) returns (uint256)",
           args: [agentURI],
           argLabels: ["agentURI"],
@@ -89,9 +83,8 @@ export const registerAgentCommand = new Command("register-agent")
           ],
         });
         if (opts.link) {
-          const nameConfig = getChainConfig(nameChainId);
           humanLog(chalk.dim("\n  ENSIP-25 linking (second transaction):"));
-          humanLog(chalk.dim(`    Contract: IDRegistry (${nameConfig.ID_REGISTRY})`));
+          humanLog(chalk.dim(`    Contract: IDRegistry (${config.ID_REGISTRY})`));
           humanLog(chalk.dim(`    Function: setText(node, key, "1")`));
           humanLog(chalk.dim(`    Key format: agent-registration[erc7930][agentId]`));
           humanLog(chalk.dim(`    (Agent ID determined after first tx)`));
@@ -99,12 +92,12 @@ export const registerAgentCommand = new Command("register-agent")
         return;
       }
 
-      statusLog(chalk.dim(`Registering on ERC-8004 IdentityRegistry (${registryConfig.name})...`));
+      statusLog(chalk.dim(`Registering on ERC-8004 IdentityRegistry (${config.name})...`));
       statusLog(chalk.dim(`Agent URI: ${resolved.domain}`));
       statusLog(chalk.dim(`Services: ${services.map((s) => s.name).join(", ")}`));
 
       const registry = new ethers.Contract(
-        registryConfig.IDENTITY_REGISTRY_8004,
+        config.IDENTITY_REGISTRY_8004,
         IDENTITY_REGISTRY_ABI,
         wallet
       );
@@ -124,7 +117,7 @@ export const registerAgentCommand = new Command("register-agent")
 
       if (agentId) {
         humanLog(chalk.green(`Registered! Agent ID: ${chalk.bold(agentId)}`));
-        humanLog(chalk.dim(`View: https://www.8004scan.io/agents/${registryConfig.shortName}/${agentId}`));
+        humanLog(chalk.dim(`View: https://www.8004scan.io/agents/${config.shortName}/${agentId}`));
       } else {
         humanLog(chalk.green("Registered! (could not extract agent ID from logs)"));
       }
@@ -132,15 +125,12 @@ export const registerAgentCommand = new Command("register-agent")
       // Link via ENSIP-25 if --link flag is set
       let linked = false;
       if (opts.link && agentId) {
-        const nameConfig = getChainConfig(nameChainId);
-        const ensip25Key = buildEnsip25Key(registryChainId, registryConfig.IDENTITY_REGISTRY_8004, agentId);
+        const ensip25Key = buildEnsip25Key(config.IDENTITY_REGISTRY_8004, agentId);
 
-        const nameWallet = nameChainId !== registryChainId ? getWallet(nameChainId) : wallet;
-        const nameRegistry = new ethers.Contract(nameConfig.ID_REGISTRY, REGISTRY_ABI, nameWallet);
+        const nameRegistry = new ethers.Contract(config.ID_REGISTRY, REGISTRY_ABI, wallet);
+        await verifyOwnership(nameRegistry, resolved.node, wallet, resolved.domain);
 
-        await verifyOwnership(nameRegistry, resolved.node, nameWallet, resolved.domain);
-
-        statusLog(chalk.dim(`\nSetting ENSIP-25 record on ${nameConfig.name}...`));
+        statusLog(chalk.dim(`\nSetting ENSIP-25 record...`));
         statusLog(chalk.dim(`Key: ${ensip25Key}`));
         const linkTx = await nameRegistry.setText(resolved.node, ensip25Key, "1");
         humanLog(`Tx: ${chalk.dim(linkTx.hash)}`);
@@ -151,7 +141,7 @@ export const registerAgentCommand = new Command("register-agent")
         humanLog(chalk.yellow("Cannot link: agent ID not found. Use `id-cli link-agent` manually."));
       } else if (agentId) {
         humanLog(chalk.dim(`\nTo link to your name, run:`));
-        humanLog(`  id-cli link-agent ${resolved.path} ${agentId} --chain ${opts.chain}`);
+        humanLog(`  id-cli link-agent ${resolved.path} ${agentId}`);
       }
 
       outputSuccess({
@@ -161,7 +151,7 @@ export const registerAgentCommand = new Command("register-agent")
         gasUsed: receipt.gasUsed.toString(),
         services: services.map((s) => s.name),
         linked,
-      }, { chain: registryConfig.name, chainId: registryChainId });
+      });
     } catch (err: any) {
       handleErrorJson(err);
     }
@@ -169,43 +159,36 @@ export const registerAgentCommand = new Command("register-agent")
 
 export const linkAgentCommand = new Command("link-agent")
   .description("Link an ERC-8004 agent to an ENS name via ENSIP-25")
-  .argument("<name>", "Name (e.g., agent-0, neo.agent-0, agent-0.base.xid.eth)")
+  .argument("<name>", "Name (e.g., agent-0, neo.agent-0, agent-0.xid.eth)")
   .argument("<agentId>", "ERC-8004 agent ID")
-  .option("-c, --chain <chain>", "Chain where the ERC-8004 registry lives", "base")
-  .option("--name-chain <chain>", "Chain where the ENS name lives (if different)")
   .option("--dry-run", "Show transaction proposal without executing")
   .action(async (name, agentId, opts) => {
     try {
-      const registryChainId = resolveChain(opts.chain);
-      const registryConfig = getChainConfig(registryChainId);
-      const nameChainId = opts.nameChain ? resolveChain(opts.nameChain) : registryChainId;
-      const nameConfig = getChainConfig(nameChainId);
-      const resolved = await resolveNameAsync(name, opts.nameChain || opts.chain);
-
-      const ensip25Key = buildEnsip25Key(registryChainId, registryConfig.IDENTITY_REGISTRY_8004, agentId);
+      const config = getConfig();
+      const resolved = await resolveNameAsync(name);
+      const ensip25Key = buildEnsip25Key(config.IDENTITY_REGISTRY_8004, agentId);
 
       if (isDryRun()) {
         proposeTx({
           action: `Link agent ${agentId} to ${resolved.domain} via ENSIP-25`,
-          chainId: nameChainId,
           contractName: "IDRegistry",
-          contractAddress: nameConfig.ID_REGISTRY,
+          contractAddress: config.ID_REGISTRY,
           functionAbi: "function setText(bytes32 node, string key, string value)",
           args: [resolved.node, ensip25Key, "1"],
           argLabels: ["node", "key", "value"],
           notes: [
             `ENSIP-25 key: ${ensip25Key}`,
-            `Registry: ${registryConfig.IDENTITY_REGISTRY_8004} (${registryConfig.name})`,
+            `Registry: ${config.IDENTITY_REGISTRY_8004}`,
           ],
         });
         return;
       }
 
-      const wallet = getWallet(nameChainId);
+      const wallet = getWallet();
       statusLog(chalk.dim(`Linking agent ${agentId} to ${resolved.domain}...`));
       statusLog(chalk.dim(`Key: ${ensip25Key}`));
 
-      const registry = new ethers.Contract(nameConfig.ID_REGISTRY, REGISTRY_ABI, wallet);
+      const registry = new ethers.Contract(config.ID_REGISTRY, REGISTRY_ABI, wallet);
       await verifyOwnership(registry, resolved.node, wallet, resolved.domain);
 
       const tx = await registry.setText(resolved.node, ensip25Key, "1");
@@ -217,7 +200,7 @@ export const linkAgentCommand = new Command("link-agent")
         agentId,
         ensip25Key,
         txHash: tx.hash,
-      }, { chain: nameConfig.name, chainId: nameChainId });
+      });
     } catch (err: any) {
       handleErrorJson(err);
     }

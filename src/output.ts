@@ -40,7 +40,9 @@ export function outputSuccess(data: any, metadata?: Record<string, any>): void {
 export function outputError(code: string, message: string, exitCode: ExitCode = ExitCode.GENERAL_ERROR, metadata?: Record<string, any>): never {
   if (isJsonOutput()) {
     const envelope: Envelope = { status: "error", error: { code, message }, metadata: metadata || {} };
-    console.log(JSON.stringify(envelope));
+    console.log(JSON.stringify(envelope, (_key, value) =>
+      typeof value === "bigint" ? value.toString() : value
+    ));
     process.exit(exitCode);
   }
   console.error(chalk.red(message));

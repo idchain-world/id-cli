@@ -1,7 +1,7 @@
 import { Command } from "commander";
 import { ethers } from "ethers";
 import chalk from "chalk";
-import { getChainConfig } from "../config.js";
+import { getConfig } from "../config.js";
 import { getWallet } from "../provider.js";
 import { REGISTRY_ABI } from "../abi.js";
 import { resolveNameAsync, isDryRun, proposeTx, validateAddress, verifyOwnership } from "../utils.js";
@@ -9,21 +9,19 @@ import { outputSuccess, handleErrorJson, humanLog, statusLog } from "../output.j
 
 export const transferCommand = new Command("transfer")
   .description("Transfer ownership of an agent name")
-  .argument("<name>", "Name (e.g., agent-0, neo.agent-0, agent-0.base.xid.eth)")
+  .argument("<name>", "Name (e.g., agent-0, neo.agent-0, agent-0.xid.eth)")
   .requiredOption("--to <address>", "New owner address")
-  .option("-c, --chain <chain>", "Chain", "base")
   .option("--dry-run", "Show transaction proposal without executing")
   .action(async (name, opts) => {
     try {
       const toAddress = validateAddress(opts.to, "--to");
-      const resolved = await resolveNameAsync(name, opts.chain);
-      const config = getChainConfig(resolved.chainId);
-      const wallet = getWallet(resolved.chainId);
+      const resolved = await resolveNameAsync(name);
+      const config = getConfig();
+      const wallet = getWallet();
 
       if (isDryRun()) {
         proposeTx({
           action: `Transfer ${resolved.domain} to ${toAddress}`,
-          chainId: resolved.chainId,
           contractName: "IDRegistry",
           contractAddress: config.ID_REGISTRY,
           functionAbi: "function setOwner(bytes32 node, address newOwner)",
@@ -45,7 +43,7 @@ export const transferCommand = new Command("transfer")
         domain: resolved.domain,
         to: toAddress,
         txHash: tx.hash,
-      }, { chain: config.name, chainId: resolved.chainId });
+      });
     } catch (err: any) {
       handleErrorJson(err);
     }

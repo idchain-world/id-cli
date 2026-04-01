@@ -1,7 +1,7 @@
 import { Command } from "commander";
 import { ethers } from "ethers";
 import chalk from "chalk";
-import { getChainConfig } from "../config.js";
+import { getConfig } from "../config.js";
 import { getWallet } from "../provider.js";
 import { REGISTRY_ABI } from "../abi.js";
 import { resolveNameAsync, isDryRun, proposeTx, verifyOwnership, CliError, ExitCode } from "../utils.js";
@@ -10,8 +10,7 @@ import { encodeAddressToBytes } from "../address-encoding.js";
 
 export const setRecordCommand = new Command("set-record")
   .description("Bulk update records in a single transaction via setRecord")
-  .argument("<name>", "Name (e.g., agent-0, neo.agent-0, agent-0.base.xid.eth)")
-  .option("-c, --chain <chain>", "Chain", "base")
+  .argument("<name>", "Name (e.g., agent-0, neo.agent-0, agent-0.xid.eth)")
   .option("--text <pairs...>", "Text records as key=value pairs")
   .option("--addr <pairs...>", "Address records as coinType=address pairs (e.g., 60=0x...)")
   .option("--contenthash <hash>", "Content hash (hex)")
@@ -19,8 +18,8 @@ export const setRecordCommand = new Command("set-record")
   .option("--dry-run", "Show transaction proposal without executing")
   .action(async (name, opts) => {
     try {
-      const resolved = await resolveNameAsync(name, opts.chain);
-      const config = getChainConfig(resolved.chainId);
+      const resolved = await resolveNameAsync(name);
+      const config = getConfig();
 
       // Parse text records
       const textKeys: string[] = [];
@@ -78,7 +77,6 @@ export const setRecordCommand = new Command("set-record")
       if (isDryRun()) {
         proposeTx({
           action: `Bulk set ${totalRecords} record(s) on ${resolved.domain}`,
-          chainId: resolved.chainId,
           contractName: "IDRegistry",
           contractAddress: config.ID_REGISTRY,
           functionAbi: "function setRecord(bytes32 node, string[] keys, string[] values, uint256[] coinTypes, bytes[] addresses, bytes contentHash, string[] dataKeys, bytes[] dataValues)",
@@ -94,7 +92,7 @@ export const setRecordCommand = new Command("set-record")
         return;
       }
 
-      const wallet = getWallet(resolved.chainId);
+      const wallet = getWallet();
       const registry = new ethers.Contract(config.ID_REGISTRY, REGISTRY_ABI, wallet);
       await verifyOwnership(registry, resolved.node, wallet, resolved.domain);
 
@@ -129,7 +127,7 @@ export const setRecordCommand = new Command("set-record")
         contenthash: contentHash !== "0x" ? contentHash : null,
         dataRecords: dataKeys.map((k, i) => ({ key: k, value: dataValues[i] })),
         txHash: tx.hash,
-      }, { chain: config.name, chainId: resolved.chainId });
+      });
     } catch (err: any) {
       handleErrorJson(err);
     }

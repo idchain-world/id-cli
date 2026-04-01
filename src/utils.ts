@@ -1,6 +1,6 @@
 import { ethers } from "ethers";
 import chalk from "chalk";
-import { getChainConfig, resolveChain, CHAIN_CONFIGS, INDEXER_BASE_URL, type ChainConfig } from "./config.js";
+import { getConfig, CHAIN_ID, INDEXER_BASE_URL } from "./config.js";
 
 // ── Exit codes ───────────────────────────────────────────────────────────────
 
@@ -80,13 +80,13 @@ export function makeNode(parentNode: string, label: string): string {
   );
 }
 
-export function getNodeForLabel(label: string, chainId: number): string {
-  const config = getChainConfig(chainId);
+export function getNodeForLabel(label: string): string {
+  const config = getConfig();
   return makeNode(config.PARENT_NODE, label);
 }
 
-export function formatDomainName(label: string, chainId: number): string {
-  const config = getChainConfig(chainId);
+export function formatDomainName(label: string): string {
+  const config = getConfig();
   return `${label}${config.suffix}`;
 }
 
@@ -94,40 +94,37 @@ export function formatDomainName(label: string, chainId: number): string {
  * Resolve a name input to { path, node, chainId, domain }.
  *
  * Accepts:
- *   - Full domain:  neo.agent-0.base.xid.eth
- *   - Short path:   neo.agent-0  (requires chainId from --chain)
- *   - Simple label:  agent-0     (requires chainId from --chain)
+ *   - Full domain:  neo.agent-0.xid.eth
+ *   - Short path:   neo.agent-0
+ *   - Simple label:  agent-0
  *
  * For multi-level paths like "neo.agent-0", hashes each label
- * from right to left starting from the chain's PARENT_NODE.
+ * from right to left starting from the PARENT_NODE.
  */
 export interface ResolvedName {
   path: string;       // e.g. "neo.agent-0"
   node: string;       // namehash
   chainId: number;
-  domain: string;     // e.g. "neo.agent-0.base.xid.eth"
+  domain: string;     // e.g. "neo.agent-0.xid.eth"
   topLabel: string;   // e.g. "agent-0" (the direct child of PARENT_NODE)
 }
 
-export function resolveName(input: string, chainFlag?: string): ResolvedName {
-  // Try to detect full domain: ends with .xid.eth
-  const suffixMatch = input.match(/^(.+?)(\.(base|eth|op|arb|sep)\.xid\.eth)$/);
-  if (suffixMatch) {
-    const path = suffixMatch[1];
-    const suffix = suffixMatch[2];
-    // Find chain by suffix
-    const config = Object.values(CHAIN_CONFIGS).find(c => c.suffix === suffix);
-    if (!config) throw new Error(`Unknown suffix: ${suffix}`);
-    return resolvePathOnChain(path, config.chainId);
+export function resolveName(input: string): ResolvedName {
+  // Strip .xid.eth suffix if present
+  const suffix = getConfig().suffix;
+  let path = input;
+  if (input.endsWith(suffix)) {
+    path = input.slice(0, -suffix.length);
   }
-
-  // Otherwise use --chain flag
-  const chainId = chainFlag ? resolveChain(chainFlag) : 8453;
-  return resolvePathOnChain(input, chainId);
+  // Also handle legacy .base.xid.eth suffix
+  if (input.endsWith(".base.xid.eth")) {
+    path = input.slice(0, -".base.xid.eth".length);
+  }
+  return resolvePathOnChain(path);
 }
 
-function resolvePathOnChain(path: string, chainId: number): ResolvedName {
-  const config = getChainConfig(chainId);
+function resolvePathOnChain(path: string): ResolvedName {
+  const config = getConfig();
   const labels = path.split(".");
 
   // Validate each label segment
@@ -136,7 +133,6 @@ function resolvePathOnChain(path: string, chainId: number): ResolvedName {
   }
 
   // Hash from right to left: agent-0 first, then neo
-  // labels = ["neo", "agent-0"] → hash agent-0 under PARENT_NODE, then neo under that
   let node = config.PARENT_NODE;
   const topLabel = labels[labels.length - 1];
   for (let i = labels.length - 1; i >= 0; i--) {
@@ -146,7 +142,7 @@ function resolvePathOnChain(path: string, chainId: number): ResolvedName {
   return {
     path,
     node,
-    chainId,
+    chainId: CHAIN_ID,
     domain: `${path}${config.suffix}`,
     topLabel,
   };
@@ -156,13 +152,13 @@ function resolvePathOnChain(path: string, chainId: number): ResolvedName {
  * Async name resolution that supports both xid.eth names and linked .eth names.
  * For .eth names, calls the idchain.world resolve API to find the linked agent.
  */
-export async function resolveNameAsync(input: string, chainFlag?: string): Promise<ResolvedName> {
+export async function resolveNameAsync(input: string): Promise<ResolvedName> {
   // If it ends with .eth but NOT .xid.eth, it's a linked ENS name
   if (input.endsWith(".eth") && !input.endsWith(".xid.eth")) {
     return resolveLinkedEnsName(input);
   }
   // Otherwise use the sync resolver
-  return resolveName(input, chainFlag);
+  return resolveName(input);
 }
 
 const RESOLVE_API_URL = process.env.RESOLVE_API_URL || "https://idchain.world/api/v1/resolve";
@@ -181,28 +177,30 @@ async function resolveLinkedEnsName(ensName: string): Promise<ResolvedName> {
     throw new CliError(`Failed to resolve ${ensName}: ${json.error?.message || "unknown error"}`, ExitCode.GENERAL_ERROR);
   }
 
-  const { registryName, node, chain } = json.data;
-  if (!registryName || !node || !chain) {
+  const { registryName, node } = json.data;
+  if (!registryName || !node) {
     throw new CliError(`Incomplete resolve response for ${ensName}.`, ExitCode.GENERAL_ERROR);
   }
 
-  // Map chain name to chainId
-  const chainId = resolveChain(chain);
-
-  // Parse path and topLabel from registryName (e.g. "treo.agent-1.base.xid.eth" → path "treo.agent-1", topLabel "agent-1")
-  const suffixMatch = registryName.match(/^(.+?)(\.(base|eth|op|arb|sep)\.xid\.eth)$/);
-  if (!suffixMatch) {
+  // Parse path from registryName (e.g. "treo.agent-1.xid.eth" → path "treo.agent-1")
+  const config = getConfig();
+  let path: string;
+  if (registryName.endsWith(config.suffix)) {
+    path = registryName.slice(0, -config.suffix.length);
+  } else if (registryName.endsWith(".base.xid.eth")) {
+    // Handle legacy format
+    path = registryName.slice(0, -".base.xid.eth".length);
+  } else {
     throw new CliError(`Unexpected registry name format: ${registryName}`, ExitCode.GENERAL_ERROR);
   }
-  const path = suffixMatch[1];
   const labels = path.split(".");
   const topLabel = labels[labels.length - 1];
 
   return {
     path,
     node,
-    chainId,
-    domain: registryName,
+    chainId: CHAIN_ID,
+    domain: `${path}${config.suffix}`,
     topLabel,
   };
 }
@@ -216,7 +214,6 @@ export async function signUsdcPermit(
   usdc: ethers.Contract,
   spender: string,
   value: bigint,
-  chainId: number,
 ): Promise<{ deadline: bigint; v: number; r: string; s: string }> {
   const tokenName = await usdc.name();
   const nonce = await usdc.nonces(wallet.address);
@@ -227,7 +224,7 @@ export async function signUsdcPermit(
       {
         name: tokenName,
         version: "1",
-        chainId,
+        chainId: CHAIN_ID,
         verifyingContract: await usdc.getAddress(),
       },
       {
@@ -267,7 +264,6 @@ export function isDryRun(): boolean {
 
 export interface TxProposal {
   action: string;
-  chainId: number;
   contractName: string;
   contractAddress: string;
   functionAbi: string;
@@ -277,7 +273,7 @@ export interface TxProposal {
 }
 
 export function proposeTx(p: TxProposal): void {
-  const config = getChainConfig(p.chainId);
+  const config = getConfig();
   const iface = new ethers.Interface([p.functionAbi]);
   const fragment = iface.fragments[0] as ethers.FunctionFragment;
   const calldata = iface.encodeFunctionData(fragment, p.args);
@@ -287,7 +283,7 @@ export function proposeTx(p: TxProposal): void {
   console.log(chalk.bold("Transaction Proposal"));
   console.log("=".repeat(50));
   console.log(`  ${chalk.dim("Action:")}     ${p.action}`);
-  console.log(`  ${chalk.dim("Chain:")}      ${config.name} (${p.chainId})`);
+  console.log(`  ${chalk.dim("Chain:")}      ${config.name} (${CHAIN_ID})`);
   console.log(`  ${chalk.dim("Contract:")}   ${p.contractName}`);
   console.log(`               ${p.contractAddress}`);
   console.log(`  ${chalk.dim("Function:")}   ${fragment.format("sighash")}`);
